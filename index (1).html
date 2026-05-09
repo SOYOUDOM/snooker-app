@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet"/>
-<link rel="icon" href="/favicon.ico" />
+
 <!-- ═══════════════════════════════════════════
      ABLY REAL-TIME (free tier, no database)
      Sign up free at https://ably.com → get API key
@@ -672,7 +672,7 @@ select option{ background:#111; }
 
   <!-- ═══ HEADER ═══ -->
   <header class="hdr">
-    <div class="hdr-title">⬤ SNOOKER</div>
+    <div class="hdr-title" style="justify-content: center; align-items: center;">⬤ <img src="/logo.png" alt="" width="50px"> sSNOOKER</div>
     <div class="hdr-right" id="hdrRight">
       <!-- populated by JS -->
     </div>
@@ -948,68 +948,10 @@ function loadMatches(){
   catch(e){ return {}; }
 }
 
-/* ── Memory limits ──────────────────────────────
-   MAX_MATCHES  : keep at most this many matches
-   MAX_ENDED_AGE: auto-delete ended matches older than this (ms)
-   MAX_LS_BYTES : warn + prune if localStorage blob exceeds this
-   ─────────────────────────────────────────────── */
-const MAX_MATCHES   = 20;
-const MAX_ENDED_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
-const MAX_LS_BYTES  = 3 * 1024 * 1024;           // 3 MB safety ceiling
-
-function pruneMatches(all){
-  const now = Date.now();
-
-  // 1. Drop ended matches older than 7 days
-  for(const code of Object.keys(all)){
-    const m = all[code];
-    if(m.phase === PHASE.ENDED && (now - (m.updatedAt||0)) > MAX_ENDED_AGE){
-      delete all[code];
-    }
-  }
-
-  // 2. If still over MAX_MATCHES, drop oldest ended first, then oldest overall
-  let codes = Object.keys(all);
-  if(codes.length > MAX_MATCHES){
-    const sorted = codes.sort((a,b)=>(all[a].updatedAt||0)-(all[b].updatedAt||0));
-    // prefer deleting ended ones first
-    const ended  = sorted.filter(c=>all[c].phase===PHASE.ENDED);
-    const active = sorted.filter(c=>all[c].phase!==PHASE.ENDED);
-    const ordered = [...ended, ...active];
-    while(Object.keys(all).length > MAX_MATCHES && ordered.length){
-      delete all[ordered.shift()];
-    }
-  }
-
-  return all;
-}
-
 function saveMatch(code, state){
-  let all = loadMatches();
-  // Strip heavy fields before saving
-  all[code] = { ...state, history:[], logs:(state.logs||[]).slice(0,40), updatedAt: Date.now() };
-
-  // Prune old / excess matches
-  all = pruneMatches(all);
-
-  // Check total size
-  const blob = JSON.stringify(all);
-  if(blob.length > MAX_LS_BYTES){
-    // Emergency: drop oldest half regardless of status
-    const sorted = Object.keys(all).sort((a,b)=>(all[a].updatedAt||0)-(all[b].updatedAt||0));
-    sorted.slice(0, Math.floor(sorted.length/2)).forEach(c=>delete all[c]);
-    toast('OLD MATCHES AUTO-CLEANED', 'warn');
-  }
-
-  try{
-    localStorage.setItem(LS_MATCHES, JSON.stringify(all));
-  } catch(e){
-    // localStorage full — nuclear option: clear all ended matches
-    const clean = {};
-    Object.keys(all).forEach(c=>{ if(all[c].phase!==PHASE.ENDED) clean[c]=all[c]; });
-    try{ localStorage.setItem(LS_MATCHES, JSON.stringify(clean)); } catch(_){}
-    toast('STORAGE FULL — ENDED MATCHES CLEARED', 'err');
-  }
+  const all = loadMatches();
+  all[code] = { ...state, history:[], updatedAt: Date.now() };
+  localStorage.setItem(LS_MATCHES, JSON.stringify(all));
 }
 
 function deleteMatch(code){
