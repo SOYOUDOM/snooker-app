@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet"/>
-
+<link rel="icon" href="/favicon.ico" />
 <!-- ═══════════════════════════════════════════
      ABLY REAL-TIME (free tier, no database)
      Sign up free at https://ably.com → get API key
@@ -1035,54 +1035,28 @@ function connectAbly(code){
   try{
     if(ablyClient){ ablyClient.close(); }
     ablyClient = new Ably.Realtime({ key: ABLY_KEY, clientId: 'player-'+Date.now() });
-
     ablyClient.connection.on('connected', ()=>{
       setSyncBar(true, 'LIVE · CODE ' + code);
-      // ── FIX: if joining from another device, request current state immediately
-      if(G._pendingJoin){
-        ablyChannel.publish('request-state', {}).catch(console.error);
-        // If nobody responds within 6s the host device is probably not open
-        setTimeout(()=>{
-          if(G && G._pendingJoin){
-            setSyncBar(false, 'NO RESPONSE — IS THE HOST DEVICE OPEN?');
-            toast('OPEN THE MATCH ON THE HOST DEVICE TOO', 'warn');
-          }
-        }, 6000);
-      }
     });
     ablyClient.connection.on('disconnected', ()=> setSyncBar(false,'RECONNECTING…'));
     ablyClient.connection.on('failed', ()=> setSyncBar(false,'OFFLINE'));
 
     ablyChannel = ablyClient.channels.get('snooker-' + code);
-
-    // Receive live score pushes from any device
     ablyChannel.subscribe('state', (msg)=>{
       if(isSyncing) return;
+      // Incoming state from another device
       const remote = msg.data;
       if(!remote || !remote.scores) return;
       const prevScores = [...(G.scores||[0,0])];
-      const wasPending = !!(G._pendingJoin);
-      G = {...remote, history: G.history||[], _pendingJoin: false };
-      if(wasPending){
-        setSyncBar(true, 'LIVE · CODE ' + code);
-        toast('MATCH LOADED ✓');
-      }
+      G = {...remote, history: G.history||[] };
+      // animate if score changed
       if(prevScores[0]!==G.scores[0]) animateScore(0);
       if(prevScores[1]!==G.scores[1]) animateScore(1);
       render();
+      // Also update localStorage
       saveMatch(code, G);
       renderLobby();
     });
-
-    // ── FIX: respond to state requests from joining devices
-    // When a new phone joins, it broadcasts 'request-state'.
-    // The PC (host) receives it and immediately publishes its current G.
-    ablyChannel.subscribe('request-state', ()=>{
-      if(G && G.scores && !G._pendingJoin){
-        setTimeout(()=> publishState(), 200);
-      }
-    });
-
   } catch(e){
     console.error('Ably error:', e);
     setSyncBar(false, 'SYNC UNAVAILABLE');
@@ -1244,26 +1218,24 @@ function joinMatch(code){
 function joinByCode(){
   const raw = document.getElementById('joinCodeInput').value.trim().toUpperCase();
   if(!raw){ return; }
-  document.getElementById('joinCodeInput').value='';
-
-  // Already saved locally — just open it
+  // Check localStorage first
   const all = loadMatches();
-  if(all[raw]){ joinMatch(raw); return; }
-
-  // Not local — need Ably to fetch it from whoever created it
-  if(!USE_REALTIME){
-    toast('MATCH NOT FOUND — ADD ABLY KEY FOR CROSS-DEVICE JOIN', 'err');
+  if(all[raw]){
+    document.getElementById('joinCodeInput').value='';
+    joinMatch(raw);
     return;
   }
-
-  // Enter with a blank placeholder; connectAbly will request real state
-  currentRoomCode = raw;
-  G = { players:['—','—'], scores:[0,0], breaks:[0,0], cur:0,
-        redsRemaining:15, phase:PHASE.REDS, nextIsRed:true,
-        colourIndex:0, history:[], logs:[], _pendingJoin:true };
-  enterGameScreen();
-  setSyncBar(false, 'FETCHING MATCH STATE…');
-  toast('JOINING ' + raw + '…');
+  // If Ably enabled, subscribe and wait for state
+  if(USE_REALTIME){
+    currentRoomCode = raw;
+    G = newGameState('P1','P2',15,0);
+    G._pendingJoin = true;
+    document.getElementById('joinCodeInput').value='';
+    enterGameScreen();
+    toast('JOINING ' + raw + '…');
+  } else {
+    toast('MATCH NOT FOUND LOCALLY', 'err');
+  }
 }
 
 function enterGameScreen(){
