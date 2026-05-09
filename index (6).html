@@ -914,17 +914,15 @@ select option{ background:#111; }
 <!-- ═══ SCRIPT ═══ -->
 <script>
 /* ══════════════════════════════════════════
-   FIREBASE CONFIGURATION
-   Free forever — no request limits for this scale.
-   Setup (2 min):
-   1. Go to https://console.firebase.google.com
-   2. Create project → Realtime Database → Create database
-      → Start in TEST MODE → pick any region
-   3. Copy your database URL (looks like:
-      https://your-app-default-rtdb.firebaseio.com)
-   4. Paste it below as FIREBASE_URL
+   CONFIGURATION — 2 steps to fix 401 error:
+   1. jsonbin.io → Dashboard → click "snooker-app" bin
+      → top-right ••• → SET TO PUBLIC (fixes 401 on read)
+   2. jsonbin.io → API Keys → copy Master Key exactly
+      → paste below replacing YOUR_MASTER_KEY_HERE
    ══════════════════════════════════════════ */
-const FIREBASE_URL = 'https://snooker-app-cc170-default-rtdb.asia-southeast1.firebasedatabase.app'; // e.g. https://myapp-default-rtdb.firebaseio.com
+const JSONBIN_KEY  = '$2a$10$pRSgLP8kafCxl4oQPPXme.4cD0xrHEBJhLyqSw9zjIrX9i99MoKoa'; // ← paste your Master Key here
+const JSONBIN_BIN  = '69ff104ec0954111d8fb262e';    // ← your bin ID (already filled in)
+const POLL_MS      = 3000;  // poll interval ms (3s is fine)
 
 /* ─── CONSTANTS ─── */
 const PHASE = { REDS:'REDS', COLORS:'COLOURS', ENDED:'ENDED' };
@@ -934,7 +932,9 @@ const LS_MATCHES   = 'snk_matches_v2';
 let G = {};                  // current game state
 let currentRoomCode = null;  // active match code
 let logSeq = 0;
-let firebaseListener = null; // active SSE connection for real-time updates
+let pollTimer = null;        // setInterval handle for remote polling
+let lastAppliedUpdatedAt = 0;// track last remote timestamp we applied
+let isWriting = false;       // true while a PUT is in-flight
 let pendingRoomCode = null;  // code pre-generated on setup screen
 
 /* ══════════════════════════════════════════════
@@ -1021,116 +1021,149 @@ function generateCode(){
 }
 
 /* ══════════════════════════════════════════════
-   FIREBASE REALTIME DATABASE SYNC
-   Uses Firebase's REST streaming (SSE) — no SDK needed.
-   Devices get pushed updates instantly, no polling.
-   Free forever on Firebase Spark plan.
+   JSONBin.io REAL-TIME SYNC
+   Works on Vercel, GitHub Pages, any static host.
+   No server needed — polls JSONBin every POLL_MS.
    ══════════════════════════════════════════════ */
 
-function firebaseConfigured(){
-  return FIREBASE_URL !== 'YOUR_FIREBASE_URL_HERE' && FIREBASE_URL.startsWith('https://');
+function jsonbinConfigured(){
+  return JSONBIN_KEY !== '$2a$10$YOUR_MASTER_KEY_HERE';
 }
 
-/* Path for a specific match room */
-function roomUrl(code){
-  return `${FIREBASE_URL}/rooms/${code}.json`;
-}
-
-/* ── WRITE: push current game state to Firebase ── */
-async function firebaseWrite(code, state){
-  if(!firebaseConfigured()) return false;
+/* ── JSONBin API helpers ──
+   READ  → no auth if bin is PUBLIC (set via JSONBin dashboard)
+   WRITE → always needs Master Key
+   ── */
+async function remoteLoad(){
+  if(!jsonbinConfigured()) return null;
   try{
-    const payload = { ...state, history:[], logs:(state.logs||[]).slice(0,40) };
-    const r = await fetch(roomUrl(code), {
-      method:  'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(payload)
-    });
-    return r.ok;
-  } catch(e){ console.warn('firebaseWrite error', e); return false; }
+    // Public bin: no auth header needed for GET
+    const r = await fetch(
+      `https://api.jsonbin.io/v3/b/${JSONBIN_BIN}/latest`,
+      { headers: { 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Meta': 'false' } }
+    );
+    if(!r.ok){
+      const msg = await r.text().catch(()=>'');
+      console.warn('remoteLoad HTTP', r.status, msg);
+      setSyncBar(false, 'READ ERROR ' + r.status + ' — MAKE BIN PUBLIC');
+      return null;
+    }
+    const data = await r.json();
+    // X-Bin-Meta:false → response IS the record object directly
+    if(data && typeof data === 'object' && !Array.isArray(data)) return data;
+    return null;
+  } catch(e){ console.warn('remoteLoad error', e); return null; }
 }
 
-/* ── LISTEN: real-time push via Server-Sent Events ──
-   Firebase REST supports SSE — open one connection,
-   get pushed every time data changes. No polling needed. */
-function firebaseListen(code){
-  firebaseStopListen();
-  if(!firebaseConfigured()){
-    setSyncBar(false, 'LOCAL ONLY — ADD FIREBASE URL TO SYNC');
+async function remoteSave(payload){
+  if(!jsonbinConfigured()) return false;
+  try{
+    const r = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN}`, {
+      method: 'PUT',
+      headers:{
+        'Content-Type': 'application/json',
+        'X-Master-Key': JSONBIN_KEY,
+        'X-Bin-Meta':   'false'
+      },
+      body: JSON.stringify(payload)
+    });
+    if(!r.ok){
+      const msg = await r.text().catch(()=>'');
+      console.warn('remoteSave HTTP', r.status, msg);
+      setSyncBar(false, 'WRITE ERROR ' + r.status + (r.status===401?' — BAD MASTER KEY':''));
+      return false;
+    }
+    return true;
+  } catch(e){ console.warn('remoteSave error', e); return false; }
+}
+
+/* ── Polling ── */
+function startPolling(code){
+  stopPolling();
+  lastAppliedUpdatedAt = 0; // reset so we always apply first fetch
+  if(!jsonbinConfigured()){
+    setSyncBar(false, 'LOCAL ONLY — SET JSONBIN KEY & BIN ID TO SYNC');
     return;
   }
   setSyncBar(false, 'CONNECTING…');
-
-  const es = new EventSource(roomUrl(code));
-  firebaseListener = es;
-
-  es.addEventListener('put', (e) => {
-    try{
-      const msg  = JSON.parse(e.data);
-      const remote = msg.data;   // null if room doesn't exist yet
-      if(!remote || !remote.scores || !remote.players) return;
-
-      const remoteTs = remote.updatedAt || 0;
-
-      // Ignore if this is our own write (we already have it in G)
-      // We detect this by comparing timestamps — if remote matches what
-      // we just wrote, skip (avoids flicker)
-      if(remoteTs > 0 && remoteTs === G.updatedAt && !G._pendingJoin) return;
-
-      const prevScores = [...(G.scores || [0,0])];
-      const wasPending = !!(G._pendingJoin);
-
-      G = { ...remote, history: G.history || [], _pendingJoin: false };
-      logSeq = (G.logs && G.logs.length) || 0;
-
-      setSyncBar(true, 'LIVE · CODE ' + code);
-      if(wasPending) toast('MATCH SYNCED ✓');
-      if(prevScores[0] !== G.scores[0]) animateScore(0);
-      if(prevScores[1] !== G.scores[1]) animateScore(1);
-      render();
-      // Mirror to localStorage
-      const all = loadMatches();
-      all[code] = { ...G, history:[], logs:(G.logs||[]).slice(0,40) };
-      try{ localStorage.setItem(LS_MATCHES, JSON.stringify(all)); } catch(_){}
-      renderLobby();
-    } catch(err){ console.warn('firebase put parse error', err); }
-  });
-
-  es.addEventListener('patch', (e) => {
-    // patch events arrive for partial updates — treat same as put
-    es.dispatchEvent(new MessageEvent('put', { data: e.data }));
-  });
-
-  es.onerror = () => {
-    setSyncBar(false, 'RECONNECTING…');
-  };
-
-  es.onopen = () => {
-    setSyncBar(true, 'LIVE · CODE ' + code);
-  };
+  pollOnce(code);  // immediate first fetch
+  pollTimer = setInterval(() => pollOnce(code), POLL_MS);
 }
 
-function firebaseStopListen(){
-  if(firebaseListener){ firebaseListener.close(); firebaseListener = null; }
+async function pollOnce(code){
+  // Don't read while we are in the middle of a write —
+  // wait until write finishes, then the next poll cycle will catch it.
+  if(isWriting) return;
+
+  const all = await remoteLoad();
+  if(!all){ setSyncBar(false, 'SYNC ERROR — CHECK KEY/BIN ID'); return; }
+
+  setSyncBar(true, 'LIVE · CODE ' + code);
+
+  const remote = all[code];
+  if(!remote || !remote.scores || !remote.players) return;
+
+  // Only apply if remote is newer than what we last applied
+  const remoteTs = remote.updatedAt || 0;
+  if(remoteTs <= lastAppliedUpdatedAt) return;
+
+  // Remote is newer — apply it
+  lastAppliedUpdatedAt = remoteTs;
+  const prevScores = [...(G.scores || [0,0])];
+  const wasPending = !!(G._pendingJoin);
+
+  G = { ...remote, history: G.history || [], _pendingJoin: false };
+  logSeq = (G.logs && G.logs.length) || 0;
+
+  if(wasPending) toast('MATCH SYNCED ✓');
+  if(prevScores[0] !== G.scores[0]) animateScore(0);
+  if(prevScores[1] !== G.scores[1]) animateScore(1);
+  render();
+  // Mirror to localStorage (but don't bump updatedAt)
+  const localAll = loadMatches();
+  localAll[code] = { ...G, history:[], logs:(G.logs||[]).slice(0,40) };
+  try{ localStorage.setItem(LS_MATCHES, JSON.stringify(localAll)); } catch(_){}
+  renderLobby();
 }
 
-/* ── publishAll: save locally + push to Firebase ── */
+function stopPolling(){
+  if(pollTimer){ clearInterval(pollTimer); pollTimer = null; }
+}
+
+/* ── Publish ──
+   Called after every game action.
+   Writes the FULL match list to JSONBin so any device polling will get it.
+   Sets lastAppliedUpdatedAt to our own write timestamp so we don't re-apply
+   our own change on the next poll.                                          */
 async function publishAll(){
   if(!currentRoomCode) return;
+  isWriting = true;
+
+  // 1. Stamp current state
   G.updatedAt = Date.now();
-  // Save to localStorage immediately
+
+  // 2. Save to localStorage
   saveMatch(currentRoomCode, G);
   renderLobby();
-  // Push to Firebase (SSE listener on other devices will fire automatically)
-  if(firebaseConfigured()){
-    const ok = await firebaseWrite(currentRoomCode, G);
-    if(!ok) setSyncBar(false, 'WRITE FAILED — CHECK FIREBASE URL');
+
+  // 3. Push to JSONBin
+  if(jsonbinConfigured()){
+    // Read latest remote first to preserve other rooms
+    let all = await remoteLoad() || {};
+    all[currentRoomCode] = { ...G, history:[], logs:(G.logs||[]).slice(0,40) };
+    const ok = await remoteSave(all);
+    if(ok){
+      // Mark our own timestamp so pollOnce ignores this write
+      lastAppliedUpdatedAt = G.updatedAt;
+    }
   }
+
+  isWriting = false;
 }
 
-/* Stubs so existing call-sites work unchanged */
-function connectAbly(code){ firebaseListen(code); }
-function disconnectAbly(){ firebaseStopListen(); }
+/* Stubs so existing call-sites keep working unchanged */
+function connectAbly(code){ startPolling(code); }
+function disconnectAbly(){ stopPolling(); }
 function publishState(){ publishAll(); }
 
 function setSyncBar(online, label){
