@@ -924,8 +924,8 @@ select option{ background:#111; }
    Get a free key at https://ably.com
    No database needed — Ably handles real-time
    ══════════════════════════════════════════ */
-const ABLY_KEY = 'BWcXxA.0tBrJQ:0XAQeFamZaglDjToUh_hSEfE5e90J14AxOL1A9805qY';
-const USE_REALTIME = true; // FIX: was comparing key to itself, always false
+const ABLY_KEY = 'BWcXxA.0tBrJQ:0XAQeFamZaglDjToUh_hSEfE5e90J14AxOL1A9805qY'; // e.g. "xVLRLA.abc123:def456..."
+const USE_REALTIME = true; // placeholder it compares against
 
 /* ─── CONSTANTS ─── */
 const PHASE = { REDS:'REDS', COLORS:'COLOURS', ENDED:'ENDED' };
@@ -1038,64 +1038,50 @@ function connectAbly(code){
 
     ablyClient.connection.on('connected', ()=>{
       setSyncBar(true, 'LIVE · CODE ' + code);
-
-      // Subscribe to channels FIRST, then request state
-      ablyChannel = ablyClient.channels.get('snooker-' + code);
-
-      // Receive live score pushes from any device
-      ablyChannel.subscribe('state', (msg)=>{
-        if(isSyncing) return;
-        const remote = msg.data;
-        if(!remote || !remote.scores) return;
-        const prevScores = [...(G.scores||[0,0])];
-        const wasPending = !!(G._pendingJoin);
-        G = {...remote, history: G.history||[], _pendingJoin: false };
-        if(wasPending){
-          setSyncBar(true, 'LIVE · CODE ' + code);
-          toast('MATCH LOADED ✓');
-        }
-        if(prevScores[0]!==G.scores[0]) animateScore(0);
-        if(prevScores[1]!==G.scores[1]) animateScore(1);
-        render();
-        saveMatch(code, G);
-        renderLobby();
-      });
-
-      // Respond to state requests from joining devices
-      ablyChannel.subscribe('request-state', ()=>{
-        if(G && G.scores && !G._pendingJoin){
-          setTimeout(()=> publishState(), 200);
-        }
-      });
-
-      // If this device is joining an existing match, request latest state
-      // with auto-retry every 4s (up to 3 attempts) in case host responds late
+      // ── FIX: if joining from another device, request current state immediately
       if(G._pendingJoin){
-        let attempts = 0;
-        const maxAttempts = 3;
-        function requestState(){
-          if(!G._pendingJoin) return; // already received state
-          if(attempts >= maxAttempts){
+        ablyChannel.publish('request-state', {}).catch(console.error);
+        // If nobody responds within 6s the host device is probably not open
+        setTimeout(()=>{
+          if(G && G._pendingJoin){
             setSyncBar(false, 'NO RESPONSE — IS THE HOST DEVICE OPEN?');
             toast('OPEN THE MATCH ON THE HOST DEVICE TOO', 'warn');
-            // Fall back to local data even if stale
-            G._pendingJoin = false;
-            render();
-            return;
           }
-          attempts++;
-          ablyChannel.publish('request-state', {}).catch(console.error);
-          setTimeout(requestState, 4000);
-        }
-        requestState();
-      } else {
-        // This device is the creator/host — publish state immediately
-        // so any waiting joiner receives it right away
-        setTimeout(()=> publishState(), 300);
+        }, 6000);
       }
     });
     ablyClient.connection.on('disconnected', ()=> setSyncBar(false,'RECONNECTING…'));
     ablyClient.connection.on('failed', ()=> setSyncBar(false,'OFFLINE'));
+
+    ablyChannel = ablyClient.channels.get('snooker-' + code);
+
+    // Receive live score pushes from any device
+    ablyChannel.subscribe('state', (msg)=>{
+      if(isSyncing) return;
+      const remote = msg.data;
+      if(!remote || !remote.scores) return;
+      const prevScores = [...(G.scores||[0,0])];
+      const wasPending = !!(G._pendingJoin);
+      G = {...remote, history: G.history||[], _pendingJoin: false };
+      if(wasPending){
+        setSyncBar(true, 'LIVE · CODE ' + code);
+        toast('MATCH LOADED ✓');
+      }
+      if(prevScores[0]!==G.scores[0]) animateScore(0);
+      if(prevScores[1]!==G.scores[1]) animateScore(1);
+      render();
+      saveMatch(code, G);
+      renderLobby();
+    });
+
+    // ── FIX: respond to state requests from joining devices
+    // When a new phone joins, it broadcasts 'request-state'.
+    // The PC (host) receives it and immediately publishes its current G.
+    ablyChannel.subscribe('request-state', ()=>{
+      if(G && G.scores && !G._pendingJoin){
+        setTimeout(()=> publishState(), 200);
+      }
+    });
 
   } catch(e){
     console.error('Ably error:', e);
@@ -1250,10 +1236,9 @@ function joinMatch(code){
   const all = loadMatches();
   if(!all[code]){ toast('MATCH NOT FOUND', 'err'); return; }
   currentRoomCode = code;
-  G = {...all[code], history:[], _pendingJoin: true};
+  G = {...all[code], history:[]};
   logSeq = (G.logs && G.logs.length) || 0;
   enterGameScreen();
-  if(USE_REALTIME) setSyncBar(false, 'FETCHING LATEST STATE…');
 }
 
 function joinByCode(){
@@ -1651,7 +1636,6 @@ function toast(msg, type=''){
       G = {...all[lastCode], history:[]};
       logSeq = (G.logs && G.logs.length) || 0;
       enterGameScreen();
-  if(USE_REALTIME) setSyncBar(false, 'FETCHING LATEST STATE…');
       toast('SESSION RESTORED · ' + lastCode);
       return;
     }
