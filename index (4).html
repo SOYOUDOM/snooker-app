@@ -1040,7 +1040,7 @@ async function remoteLoad(){
     // Public bin: no auth header needed for GET
     const r = await fetch(
       `https://api.jsonbin.io/v3/b/${JSONBIN_BIN}/latest`,
-      { headers: { 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Meta': 'false' } }
+      { headers: { 'X-Bin-Meta': 'false' } }
     );
     if(!r.ok){
       const msg = await r.text().catch(()=>'');

@@ -914,15 +914,16 @@ select option{ background:#111; }
 <!-- ═══ SCRIPT ═══ -->
 <script>
 /* ══════════════════════════════════════════
-   CONFIGURATION — 2 steps to fix 401 error:
-   1. jsonbin.io → Dashboard → click "snooker-app" bin
-      → top-right ••• → SET TO PUBLIC (fixes 401 on read)
-   2. jsonbin.io → API Keys → copy Master Key exactly
-      → paste below replacing YOUR_MASTER_KEY_HERE
+   CONFIGURATION
+   JSONBin.io — free JSON storage, works on
+   Vercel / GitHub Pages / any static host.
+   1. Go to https://jsonbin.io and sign up free
+   2. Create a bin (any JSON: {})
+   3. Copy your Master Key and Bin ID below
    ══════════════════════════════════════════ */
-const JSONBIN_KEY  = '$2a$10$pRSgLP8kafCxl4oQPPXme.4cD0xrHEBJhLyqSw9zjIrX9i99MoKoa'; // ← paste your Master Key here
-const JSONBIN_BIN  = '69ff104ec0954111d8fb262e';    // ← your bin ID (already filled in)
-const POLL_MS      = 3000;  // poll interval ms (3s is fine)
+const JSONBIN_KEY  = '$2a$10$aGv5jKCUiAzSAN9sd/Hfded4cPmXbVG2NgHeYN2Ch2rl1nlT8OihC'; // starts with $2a$10$
+const JSONBIN_BIN  = '69ff104ec0954111d8fb262e';            // looks like 6650abc1...
+const POLL_MS      = 3000;  // how often to check for remote changes (ms)
 
 /* ─── CONSTANTS ─── */
 const PHASE = { REDS:'REDS', COLORS:'COLOURS', ENDED:'ENDED' };
@@ -1027,31 +1028,21 @@ function generateCode(){
    ══════════════════════════════════════════════ */
 
 function jsonbinConfigured(){
-  return JSONBIN_KEY !== '$2a$10$YOUR_MASTER_KEY_HERE';
+  return JSONBIN_KEY !== '$2a$10$YOUR_MASTER_KEY_HERE' &&
+         JSONBIN_BIN !== 'YOUR_BIN_ID_HERE';
 }
 
-/* ── JSONBin API helpers ──
-   READ  → no auth if bin is PUBLIC (set via JSONBin dashboard)
-   WRITE → always needs Master Key
-   ── */
+/* ── JSONBin API helpers ── */
 async function remoteLoad(){
   if(!jsonbinConfigured()) return null;
   try{
-    // Public bin: no auth header needed for GET
-    const r = await fetch(
-      `https://api.jsonbin.io/v3/b/${JSONBIN_BIN}/latest`,
-      { headers: { 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Meta': 'false' } }
-    );
-    if(!r.ok){
-      const msg = await r.text().catch(()=>'');
-      console.warn('remoteLoad HTTP', r.status, msg);
-      setSyncBar(false, 'READ ERROR ' + r.status + ' — MAKE BIN PUBLIC');
-      return null;
-    }
+    const r = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN}/latest`, {
+      headers:{ 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Meta': 'false' }
+    });
+    if(!r.ok) return null;
     const data = await r.json();
-    // X-Bin-Meta:false → response IS the record object directly
-    if(data && typeof data === 'object' && !Array.isArray(data)) return data;
-    return null;
+    // JSONBin returns the record directly (not nested)
+    return (data && typeof data === 'object' && !Array.isArray(data)) ? data : null;
   } catch(e){ console.warn('remoteLoad error', e); return null; }
 }
 
@@ -1067,13 +1058,7 @@ async function remoteSave(payload){
       },
       body: JSON.stringify(payload)
     });
-    if(!r.ok){
-      const msg = await r.text().catch(()=>'');
-      console.warn('remoteSave HTTP', r.status, msg);
-      setSyncBar(false, 'WRITE ERROR ' + r.status + (r.status===401?' — BAD MASTER KEY':''));
-      return false;
-    }
-    return true;
+    return r.ok;
   } catch(e){ console.warn('remoteSave error', e); return false; }
 }
 
