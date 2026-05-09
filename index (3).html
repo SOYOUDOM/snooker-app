@@ -934,8 +934,8 @@ let G = {};                  // current game state
 let currentRoomCode = null;  // active match code
 let logSeq = 0;
 let pollTimer = null;        // setInterval handle for remote polling
-let lastAppliedUpdatedAt = 0;// track last remote timestamp we applied
-let isWriting = false;       // true while a PUT is in-flight
+let lastRemoteHash = '';     // detect actual changes
+let isSyncing = false;       // prevent write-then-read echo
 let pendingRoomCode = null;  // code pre-generated on setup screen
 
 /* ══════════════════════════════════════════════
@@ -1032,7 +1032,7 @@ function jsonbinConfigured(){
          JSONBIN_BIN !== 'YOUR_BIN_ID_HERE';
 }
 
-/* ── JSONBin API helpers ── */
+/* Read all matches from JSONBin */
 async function remoteLoad(){
   if(!jsonbinConfigured()) return null;
   try{
@@ -1040,113 +1040,98 @@ async function remoteLoad(){
       headers:{ 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Meta': 'false' }
     });
     if(!r.ok) return null;
-    const data = await r.json();
-    // JSONBin returns the record directly (not nested)
-    return (data && typeof data === 'object' && !Array.isArray(data)) ? data : null;
-  } catch(e){ console.warn('remoteLoad error', e); return null; }
+    return await r.json();  // returns the stored object
+  } catch(e){ return null; }
 }
 
-async function remoteSave(payload){
-  if(!jsonbinConfigured()) return false;
+/* Write all matches to JSONBin */
+async function remoteSave(all){
+  if(!jsonbinConfigured()) return;
   try{
-    const r = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN}`, {
-      method: 'PUT',
+    await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN}`, {
+      method:'PUT',
       headers:{
-        'Content-Type': 'application/json',
+        'Content-Type':'application/json',
         'X-Master-Key': JSONBIN_KEY,
-        'X-Bin-Meta':   'false'
+        'X-Bin-Meta': 'false'
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(all)
     });
-    return r.ok;
-  } catch(e){ console.warn('remoteSave error', e); return false; }
+  } catch(e){ console.warn('JSONBin write failed', e); }
 }
 
-/* ── Polling ── */
+/* Start polling for remote changes while in a match */
 function startPolling(code){
   stopPolling();
-  lastAppliedUpdatedAt = 0; // reset so we always apply first fetch
   if(!jsonbinConfigured()){
-    setSyncBar(false, 'LOCAL ONLY — SET JSONBIN KEY & BIN ID TO SYNC');
+    setSyncBar(false, 'LOCAL ONLY — SET JSONBIN KEY/BIN TO SYNC');
     return;
   }
   setSyncBar(false, 'CONNECTING…');
-  pollOnce(code);  // immediate first fetch
-  pollTimer = setInterval(() => pollOnce(code), POLL_MS);
+
+  // Immediately pull on join
+  pollOnce(code, true);
+
+  pollTimer = setInterval(()=> pollOnce(code, false), POLL_MS);
 }
 
-async function pollOnce(code){
-  // Don't read while we are in the middle of a write —
-  // wait until write finishes, then the next poll cycle will catch it.
-  if(isWriting) return;
-
+async function pollOnce(code, isFirst){
   const all = await remoteLoad();
-  if(!all){ setSyncBar(false, 'SYNC ERROR — CHECK KEY/BIN ID'); return; }
-
+  if(!all) {
+    setSyncBar(false, 'OFFLINE');
+    return;
+  }
   setSyncBar(true, 'LIVE · CODE ' + code);
 
   const remote = all[code];
-  if(!remote || !remote.scores || !remote.players) return;
+  if(!remote || !remote.scores) return;
 
-  // Only apply if remote is newer than what we last applied
-  const remoteTs = remote.updatedAt || 0;
-  if(remoteTs <= lastAppliedUpdatedAt) return;
+  // Use a simple hash to detect real changes
+  const hash = JSON.stringify([remote.scores, remote.cur, remote.redsRemaining,
+                                remote.phase, remote.colourIndex, remote.updatedAt]);
+  if(hash === lastRemoteHash && !isFirst) return;
 
-  // Remote is newer — apply it
-  lastAppliedUpdatedAt = remoteTs;
-  const prevScores = [...(G.scores || [0,0])];
+  // Don't apply if we just wrote (avoid echo)
+  if(isSyncing && !isFirst) return;
+
+  const prevScores = [...(G.scores||[0,0])];
   const wasPending = !!(G._pendingJoin);
+  lastRemoteHash = hash;
 
-  G = { ...remote, history: G.history || [], _pendingJoin: false };
+  G = {...remote, history: G.history||[], _pendingJoin: false};
   logSeq = (G.logs && G.logs.length) || 0;
 
-  if(wasPending) toast('MATCH SYNCED ✓');
-  if(prevScores[0] !== G.scores[0]) animateScore(0);
-  if(prevScores[1] !== G.scores[1]) animateScore(1);
+  if(wasPending || isFirst){
+    toast('MATCH LOADED ✓');
+  }
+  if(prevScores[0]!==G.scores[0]) animateScore(0);
+  if(prevScores[1]!==G.scores[1]) animateScore(1);
   render();
-  // Mirror to localStorage (but don't bump updatedAt)
-  const localAll = loadMatches();
-  localAll[code] = { ...G, history:[], logs:(G.logs||[]).slice(0,40) };
-  try{ localStorage.setItem(LS_MATCHES, JSON.stringify(localAll)); } catch(_){}
+  saveMatch(code, G);  // keep localStorage in sync too
   renderLobby();
 }
 
 function stopPolling(){
-  if(pollTimer){ clearInterval(pollTimer); pollTimer = null; }
+  if(pollTimer){ clearInterval(pollTimer); pollTimer=null; }
 }
 
-/* ── Publish ──
-   Called after every game action.
-   Writes the FULL match list to JSONBin so any device polling will get it.
-   Sets lastAppliedUpdatedAt to our own write timestamp so we don't re-apply
-   our own change on the next poll.                                          */
+/* Push current state to JSONBin + localStorage */
 async function publishAll(){
-  if(!currentRoomCode) return;
-  isWriting = true;
-
-  // 1. Stamp current state
-  G.updatedAt = Date.now();
-
-  // 2. Save to localStorage
-  saveMatch(currentRoomCode, G);
-  renderLobby();
-
-  // 3. Push to JSONBin
+  isSyncing = true;
+  // Update localStorage immediately
+  if(currentRoomCode) saveMatch(currentRoomCode, G);
+  // Push to remote
   if(jsonbinConfigured()){
-    // Read latest remote first to preserve other rooms
-    let all = await remoteLoad() || {};
-    all[currentRoomCode] = { ...G, history:[], logs:(G.logs||[]).slice(0,40) };
-    const ok = await remoteSave(all);
-    if(ok){
-      // Mark our own timestamp so pollOnce ignores this write
-      lastAppliedUpdatedAt = G.updatedAt;
-    }
+    const all = loadMatches();
+    await remoteSave(all);
+    // Update hash so next poll knows this is our own write
+    lastRemoteHash = JSON.stringify([G.scores, G.cur, G.redsRemaining,
+                                     G.phase, G.colourIndex, G.updatedAt]);
   }
-
-  isWriting = false;
+  setTimeout(()=>{ isSyncing = false; }, 500);
 }
 
-/* Stubs so existing call-sites keep working unchanged */
+/* These stubs keep call sites working */
 function connectAbly(code){ startPolling(code); }
 function disconnectAbly(){ stopPolling(); }
 function publishState(){ publishAll(); }
@@ -1461,8 +1446,8 @@ function endFrame(){
 
 /* ─── PERSIST ─── */
 function persist(){
-  // updatedAt is stamped by publishAll() so remote poll can detect the write
   if(currentRoomCode){
+    G.updatedAt = Date.now();
     saveMatch(currentRoomCode, G);
     renderLobby();
   }
