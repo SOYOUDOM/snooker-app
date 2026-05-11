@@ -1,0 +1,2215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<title>SNOOKER SCOREBOARD</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico"/>
+<link rel="shortcut icon" href="/favicon.ico"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet"/>
+
+
+
+<style>
+/* ─── TOKENS ─── */
+:root{
+  --bg:       #080c0a;
+  --surface:  #0f1511;
+  --surface2: #141a16;
+  --border:   #1e2820;
+  --border2:  #2d3d31;
+  --hi:       #e8efe9;
+  --mid:      #7a9480;
+  --low:      #3a5040;
+  --accent:   #4cff8a;
+  --dim:      #111711;
+  --scan:     rgba(76,255,138,0.008);
+  --danger:   #e74c3c;
+  --warn:     #e67e22;
+  --info:     #3498db;
+
+  --ball-red:    #c0392b;
+  --ball-yellow: #f1c40f;
+  --ball-green:  #27ae60;
+  --ball-brown:  #8B4513;
+  --ball-blue:   #2980b9;
+  --ball-pink:   #e91e8c;
+  --ball-black:  #1a1a1a;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+}
+
+*{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+html,body{
+  height:100%; overflow:hidden;
+  background:var(--bg); color:var(--hi);
+  font-family:'Rajdhani',sans-serif;
+  touch-action:manipulation; user-select:none; -webkit-user-select:none;
+}
+
+/* scanline */
+body::before{
+  content:''; position:fixed; inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,var(--scan) 3px,var(--scan) 4px);
+  pointer-events:none; z-index:9999;
+}
+
+#app{
+  display:flex; flex-direction:column; height:100dvh;
+  padding-top:var(--safe-top); padding-bottom:var(--safe-bot);
+  overflow:hidden;
+}
+
+/* ─── HEADER ─── */
+.hdr{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 14px 6px; border-bottom:1px solid var(--border);
+  flex-shrink:0; background:var(--bg);
+}
+.hdr-title{
+  display:flex; align-items:center; gap:8px;
+}
+.hdr-logo-img{
+  width:28px; height:28px; object-fit:contain;
+  filter: drop-shadow(0 0 6px rgba(76,255,138,0.5));
+}
+.hdr-logo-text{
+  font-family:'Orbitron',monospace; font-size:13px; font-weight:900;
+  letter-spacing:4px; color:var(--accent);
+}
+.hdr-right{ display:flex; gap:8px; align-items:center; }
+.icon-btn{
+  background:var(--surface); border:1px solid var(--border2);
+  border-radius:6px; color:var(--mid); font-size:16px;
+  width:36px; height:36px; display:flex; align-items:center;
+  justify-content:center; cursor:pointer; transition:all .15s; flex-shrink:0;
+}
+.icon-btn:active{ background:var(--surface2); transform:scale(0.94); color:var(--hi); }
+
+/* ─── SCREENS ─── */
+.screen{ flex:1; overflow-y:auto; display:flex; flex-direction:column; }
+.screen.hidden{ display:none !important; }
+
+/* ─── LOBBY SCREEN ─── */
+#lobbyScreen{ padding:16px; gap:12px; }
+
+.lobby-logo{
+  text-align:center; padding:24px 0 20px;
+  display:flex; flex-direction:column; align-items:center; gap:0;
+}
+.lobby-logo-img{
+  width:88px; height:88px; object-fit:contain;
+  filter: drop-shadow(0 0 18px rgba(76,255,138,0.45))
+          drop-shadow(0 0 6px rgba(76,255,138,0.3));
+  margin-bottom:14px;
+  animation: logoGlow 3s ease-in-out infinite alternate;
+}
+@keyframes logoGlow{
+  from{ filter: drop-shadow(0 0 10px rgba(76,255,138,0.3)) drop-shadow(0 0 4px rgba(76,255,138,0.2)); }
+  to{   filter: drop-shadow(0 0 24px rgba(76,255,138,0.7)) drop-shadow(0 0 10px rgba(76,255,138,0.4)); }
+}
+.lobby-logo .big{
+  font-family:'Orbitron',monospace; font-size:22px; font-weight:900;
+  letter-spacing:8px; color:var(--accent);
+  text-shadow: 0 0 20px rgba(76,255,138,0.4);
+}
+.lobby-logo .sub{
+  font-family:'Share Tech Mono',monospace; font-size:9px;
+  color:var(--low); letter-spacing:3px; margin-top:6px;
+}
+
+.lobby-section-lbl{
+  font-family:'Share Tech Mono',monospace; font-size:8px;
+  letter-spacing:2px; color:var(--low); text-transform:uppercase;
+  padding:4px 0 8px; border-bottom:1px solid var(--border);
+}
+
+.new-match-btn{
+  width:100%; padding:16px; background:var(--accent); border:none;
+  border-radius:10px; color:#000; font-family:'Orbitron',monospace;
+  font-size:13px; font-weight:900; letter-spacing:4px;
+  cursor:pointer; transition:all .2s; display:flex;
+  align-items:center; justify-content:center; gap:8px;
+}
+.new-match-btn:active{ transform:scale(0.97); opacity:.85; }
+
+/* Match cards */
+.match-list{ display:flex; flex-direction:column; gap:8px; }
+.match-card{
+  background:var(--surface); border:1px solid var(--border2);
+  border-radius:12px; padding:12px 14px; cursor:pointer;
+  transition:all .2s; position:relative; overflow:hidden;
+  animation:cardIn .3s ease;
+}
+.match-card::before{
+  content:''; position:absolute; left:0; top:0; bottom:0;
+  width:3px; background:var(--accent); border-radius:3px 0 0 3px;
+}
+.match-card.ended::before{ background:var(--low); }
+.match-card:active{ transform:scale(0.98); background:var(--surface2); }
+
+.match-card-top{
+  display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;
+}
+.match-card-names{
+  font-family:'Orbitron',monospace; font-size:12px; font-weight:700;
+  color:var(--hi); letter-spacing:1px;
+}
+.match-card-score{
+  font-family:'Orbitron',monospace; font-size:20px; font-weight:900;
+  color:var(--accent); letter-spacing:2px;
+}
+.match-card.ended .match-card-score{ color:var(--low); }
+.match-card-meta{
+  display:flex; gap:12px; align-items:center; flex-wrap:wrap;
+}
+.match-tag{
+  font-family:'Share Tech Mono',monospace; font-size:8px;
+  letter-spacing:1px; color:var(--low); background:var(--dim);
+  padding:2px 7px; border-radius:4px;
+}
+.match-tag.live{
+  color:var(--accent); border:1px solid rgba(76,255,138,0.3);
+  animation:livePulse 2s infinite;
+}
+.match-tag.ended-tag{ color:var(--low); border:1px solid var(--border); }
+.match-card-del{
+  position:absolute; right:12px; bottom:12px;
+  font-size:14px; color:var(--low); padding:4px 8px;
+  border-radius:6px; cursor:pointer; transition:.15s;
+  background:var(--dim); border:1px solid var(--border);
+}
+.match-card-del:active{ color:var(--danger); border-color:var(--danger); }
+
+.no-matches{
+  text-align:center; padding:40px 20px;
+  font-family:'Share Tech Mono',monospace; font-size:11px;
+  color:var(--low); letter-spacing:2px; line-height:2;
+}
+
+/* ─── JOIN BAR ─── */
+.join-bar{
+  display:flex; gap:8px; margin-top:4px;
+}
+.join-input{
+  flex:1; padding:13px 14px; background:var(--dim);
+  border:1px solid var(--border2); border-radius:8px;
+  color:var(--hi); font-family:'Share Tech Mono',monospace;
+  font-size:13px; outline:none; letter-spacing:2px;
+  text-transform:uppercase;
+}
+.join-input::placeholder{ color:var(--low); letter-spacing:1px; }
+.join-input:focus{ border-color:var(--accent); }
+.join-btn{
+  padding:13px 18px; background:var(--surface); border:1px solid var(--border2);
+  border-radius:8px; color:var(--accent); font-family:'Orbitron',monospace;
+  font-size:11px; font-weight:700; letter-spacing:2px; cursor:pointer; transition:.15s;
+}
+.join-btn:active{ background:var(--surface2); }
+
+/* ─── SETUP SCREEN ─── */
+#setupScreen{ padding:16px; gap:0; }
+
+.setup-back{
+  display:flex; align-items:center; gap:8px;
+  color:var(--mid); font-family:'Share Tech Mono',monospace;
+  font-size:10px; letter-spacing:2px; cursor:pointer;
+  margin-bottom:16px; padding:4px 0;
+}
+.setup-back:active{ color:var(--hi); }
+
+.setup-logo{
+  text-align:center; padding:12px 0 18px;
+  display:flex; align-items:center; gap:12px; justify-content:center;
+}
+.setup-logo-img{
+  width:36px; height:36px; object-fit:contain;
+  filter: drop-shadow(0 0 8px rgba(76,255,138,0.5));
+}
+.setup-logo .big{
+  font-family:'Orbitron',monospace; font-size:20px; font-weight:900;
+  letter-spacing:4px; color:var(--accent);
+}
+.setup-logo .sub{
+  font-family:'Share Tech Mono',monospace; font-size:9px;
+  color:var(--low); letter-spacing:3px; margin-top:4px;
+}
+
+.field-label{
+  font-family:'Share Tech Mono',monospace; font-size:9px;
+  letter-spacing:2px; color:var(--low); text-transform:uppercase; margin-bottom:5px;
+}
+.field-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+.field-wrap{ position:relative; }
+
+input, select{
+  width:100%; padding:13px 14px; background:var(--dim);
+  border:1px solid var(--border2); border-radius:8px;
+  color:var(--hi); font-family:'Share Tech Mono',monospace;
+  font-size:14px; outline:none; -webkit-appearance:none; transition:border-color .2s;
+}
+input:focus, select:focus{ border-color:var(--accent); }
+select option{ background:#111; }
+
+/* Room code display */
+.room-code-box{
+  background:var(--dim); border:1px solid var(--border2);
+  border-radius:10px; padding:12px 14px; margin-bottom:10px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.room-code-lbl{
+  font-family:'Share Tech Mono',monospace; font-size:8px;
+  letter-spacing:2px; color:var(--low);
+}
+.room-code-val{
+  font-family:'Orbitron',monospace; font-size:20px; font-weight:900;
+  color:var(--accent); letter-spacing:4px;
+}
+.room-code-copy{
+  font-family:'Share Tech Mono',monospace; font-size:9px;
+  color:var(--mid); background:var(--surface);
+  border:1px solid var(--border2); border-radius:6px;
+  padding:6px 10px; cursor:pointer; transition:.15s;
+}
+.room-code-copy:active{ color:var(--accent); }
+
+.start-btn{
+  width:100%; margin-top:20px; padding:18px; background:var(--accent);
+  border:none; border-radius:10px; color:#000;
+  font-family:'Orbitron',monospace; font-size:14px; font-weight:900;
+  letter-spacing:4px; text-transform:uppercase; cursor:pointer; transition:all .2s;
+}
+.start-btn:active{ transform:scale(0.97); opacity:.85; }
+
+/* ─── GAME SCREEN ─── */
+#gameScreen{
+  flex:1; display:flex; flex-direction:column;
+  overflow:hidden; gap:0;
+}
+
+/* Room code pill in header */
+.room-pill{
+  display:flex; align-items:center; gap:6px;
+  background:var(--dim); border:1px solid rgba(76,255,138,0.2);
+  border-radius:20px; padding:4px 10px; cursor:pointer;
+}
+.room-pill-dot{
+  width:6px; height:6px; border-radius:50%; background:var(--accent);
+  animation:livePulse 2s infinite;
+}
+.room-pill-code{
+  font-family:'Orbitron',monospace; font-size:10px;
+  font-weight:700; color:var(--accent); letter-spacing:2px;
+}
+
+/* ─── SCOREBOARD ─── */
+.scoreboard{
+  display:grid; grid-template-columns:1fr auto 1fr;
+  background:var(--surface); border-bottom:1px solid var(--border);
+  flex-shrink:0; position:relative;
+}
+
+/* score-change flash overlay */
+.scoreboard::after{
+  content:''; position:absolute; inset:0;
+  background:rgba(76,255,138,0); pointer-events:none;
+  transition:background .05s;
+}
+.scoreboard.flash-score::after{
+  animation:scoreFlash .5s ease forwards;
+}
+
+.player-side{
+  padding:10px 12px; position:relative; transition:background .3s;
+}
+.player-side.active{ background:rgba(76,255,138,0.04); }
+.player-side.left{ text-align:left; }
+.player-side.right{ text-align:right; }
+
+.p-tag{
+  font-family:'Share Tech Mono',monospace; font-size:8px;
+  letter-spacing:2px; color:var(--low); margin-bottom:2px;
+}
+.p-name{
+  font-family:'Orbitron',monospace; font-size:11px; font-weight:700;
+  letter-spacing:1px; color:var(--mid); margin-bottom:4px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  transition:color .3s;
+}
+.player-side.active .p-name{ color:var(--accent); }
+
+.p-score{
+  font-family:'Orbitron',monospace; font-size:48px; font-weight:900;
+  line-height:1; color:var(--hi); letter-spacing:-2px;
+  transition:transform .15s;
+}
+.p-score.score-bump{ animation:scoreBump .35s cubic-bezier(.34,1.6,.64,1); }
+
+.p-break{
+  font-family:'Share Tech Mono',monospace; font-size:9px;
+  color:var(--low); margin-top:3px; letter-spacing:1px;
+}
+.p-break span{ color:var(--accent); font-weight:700; }
+
+.active-line{
+  position:absolute; bottom:0; left:0; right:0; height:2px;
+  background:transparent; transition:.3s;
+}
+.player-side.active .active-line{
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+  box-shadow:0 0 8px var(--accent);
+}
+
+.score-mid{
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; padding:0 12px;
+  border-left:1px solid var(--border); border-right:1px solid var(--border);
+}
+.vs{
+  font-family:'Orbitron',monospace; font-size:8px;
+  color:var(--low); letter-spacing:2px;
+}
+.turn-dot{
+  width:8px; height:8px; border-radius:50%; background:var(--accent);
+  box-shadow:0 0 10px var(--accent); margin-top:4px;
+  animation:pulse 1.4s infinite; transition:transform .3s;
+}
+.turn-dot.right{ transform:translateX(6px); }
+.turn-dot.left{ transform:translateX(-6px); }
+
+/* ─── STATUS STRIP ─── */
+.status-strip{
+  display:grid; grid-template-columns:repeat(4,1fr);
+  gap:1px; background:var(--border);
+  border-bottom:1px solid var(--border); flex-shrink:0;
+}
+.stat-cell{ background:var(--bg); padding:7px 6px; text-align:center; }
+.stat-lbl{
+  font-family:'Share Tech Mono',monospace; font-size:7px;
+  letter-spacing:1px; color:var(--low); text-transform:uppercase; margin-bottom:3px;
+}
+.stat-val{
+  font-family:'Orbitron',monospace; font-size:14px; font-weight:700; color:var(--hi);
+}
+.stat-val.phase{ font-size:11px; color:var(--accent); letter-spacing:1px; }
+
+/* ─── BALL GRID ─── */
+.ball-section{ padding:10px 12px 8px; flex-shrink:0; border-bottom:1px solid var(--border); }
+.section-lbl{
+  font-family:'Share Tech Mono',monospace; font-size:8px;
+  letter-spacing:2px; color:var(--low); text-transform:uppercase; margin-bottom:8px;
+}
+.ball-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:7px; }
+
+.ball-btn{
+  aspect-ratio:1; border-radius:50%; border:2px solid rgba(255,255,255,0.15);
+  cursor:pointer; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:1px;
+  position:relative; overflow:hidden; transition:all .15s;
+  box-shadow:
+    inset 0 -4px 8px rgba(0,0,0,0.6),
+    inset 0 2px 4px rgba(255,255,255,0.2),
+    0 2px 8px rgba(0,0,0,0.5);
+}
+.ball-btn::after{
+  content:''; position:absolute; top:12%; left:18%; width:28%; height:22%;
+  background:rgba(255,255,255,0.35); border-radius:50%;
+  transform:rotate(-35deg); pointer-events:none;
+}
+.ball-btn::before{
+  content:''; position:absolute; bottom:8%; left:20%; width:60%; height:20%;
+  background:rgba(0,0,0,0.3); border-radius:50%;
+  filter:blur(3px); pointer-events:none;
+}
+.ball-btn:active:not(.disabled){
+  transform:scale(0.88);
+  box-shadow:
+    inset 0 -2px 4px rgba(0,0,0,0.6),
+    inset 0 1px 2px rgba(255,255,255,0.2),
+    0 0 20px rgba(76,255,138,0.4);
+}
+.ball-btn .pts{
+  font-family:'Orbitron',monospace; font-size:13px; font-weight:900;
+  color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.8); line-height:1; position:relative; z-index:2;
+}
+.ball-btn .bname{
+  font-family:'Share Tech Mono',monospace; font-size:6px; letter-spacing:.5px;
+  color:rgba(255,255,255,0.75); text-shadow:0 1px 2px rgba(0,0,0,0.9);
+  position:relative; z-index:2;
+}
+
+.b-red    { background:radial-gradient(circle at 38% 32%, #e74c3c, var(--ball-red) 50%, #7b0000 100%); border-color:rgba(255,100,100,0.3); }
+.b-yellow { background:radial-gradient(circle at 38% 32%, #f9e34a, var(--ball-yellow) 50%, #8a6d00 100%); border-color:rgba(255,220,50,0.3); }
+.b-green  { background:radial-gradient(circle at 38% 32%, #52d68a, var(--ball-green) 50%, #145a32 100%); border-color:rgba(80,220,120,0.3); }
+.b-brown  { background:radial-gradient(circle at 38% 32%, #c0714a, var(--ball-brown) 50%, #3d1a05 100%); border-color:rgba(160,90,50,0.3); }
+.b-blue   { background:radial-gradient(circle at 38% 32%, #5dade2, var(--ball-blue) 50%, #154360 100%); border-color:rgba(80,150,220,0.3); }
+.b-pink   { background:radial-gradient(circle at 38% 32%, #f48fb1, var(--ball-pink) 50%, #880040 100%); border-color:rgba(240,100,180,0.3); }
+.b-black  { background:radial-gradient(circle at 38% 32%, #4a4a4a, #222 50%, #000 100%); border-color:rgba(100,100,100,0.3); }
+
+.ball-btn.disabled{ opacity:0.22; pointer-events:none; filter:grayscale(0.8); }
+
+/* ─── ACTION BUTTONS ─── */
+.action-section{ padding:8px 12px; flex-shrink:0; }
+.action-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+.act-btn{
+  padding:12px 6px; border-radius:10px; border:1px solid var(--border2);
+  background:var(--surface); color:var(--mid);
+  font-family:'Share Tech Mono',monospace; font-size:10px;
+  letter-spacing:.5px; text-transform:uppercase; cursor:pointer;
+  transition:all .15s; display:flex; flex-direction:column; align-items:center; gap:4px;
+}
+.act-btn .act-icon{ font-size:18px; line-height:1; }
+.act-btn:active{ transform:scale(0.95); background:var(--surface2); }
+.act-btn.foul-btn{ border-color:#c0392b55; color:#e74c3c; }
+.act-btn.foul-btn:active{ background:rgba(192,57,43,0.1); }
+.act-btn.miss-btn{ border-color:#e67e2255; color:#e67e22; }
+.act-btn.miss-btn:active{ background:rgba(230,126,34,0.1); }
+.act-btn.undo-btn:active{ background:rgba(52,152,219,0.1); color:#3498db; }
+
+/* ─── LOG ─── */
+.log-section{
+  flex:1; padding:0 12px 8px; overflow:hidden;
+  display:flex; flex-direction:column; min-height:0;
+}
+.log-scroll{
+  flex:1; overflow-y:auto; scrollbar-width:none;
+  display:flex; flex-direction:column; gap:4px; padding-right:2px;
+}
+.log-scroll::-webkit-scrollbar{ display:none; }
+.log-entry{
+  display:grid; grid-template-columns:auto 1fr auto;
+  gap:8px; align-items:center; padding:7px 10px;
+  background:var(--surface); border-left:2px solid var(--border2);
+  border-radius:4px; animation:slideIn .2s ease; flex-shrink:0;
+}
+.log-entry.foul{ border-left-color:#e74c3c; }
+.log-entry.miss{ border-left-color:#e67e22; }
+.log-entry.pot{ border-left-color:#27ae60; }
+.log-entry.system{ border-left-color:var(--accent); }
+.log-entry.remote{ border-left-color:var(--info); opacity:.85; }
+.log-ts{ font-family:'Share Tech Mono',monospace; font-size:8px; color:var(--low); white-space:nowrap; }
+.log-text{ font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--mid); }
+.log-pts{ font-family:'Orbitron',monospace; font-size:10px; font-weight:700; color:var(--hi); white-space:nowrap; }
+
+/* ─── MODAL / DIALOG ─── */
+.overlay{
+  position:fixed; inset:0; background:rgba(0,0,0,0.88);
+  display:flex; align-items:flex-end; justify-content:center;
+  z-index:500; animation:fadeIn .2s;
+  padding-bottom:var(--safe-bot);
+}
+.overlay.center{ align-items:center; }
+.overlay.hidden{ display:none !important; }
+
+.sheet{
+  background:var(--surface); border:1px solid var(--border2);
+  border-radius:20px 20px 0 0; padding:20px 16px 24px;
+  width:100%; max-width:480px;
+  animation:slideUp .3s cubic-bezier(.34,1.2,.64,1);
+}
+.sheet.center-sheet{
+  border-radius:16px; width:90%; max-width:380px;
+  animation:scaleIn .25s cubic-bezier(.34,1.3,.64,1);
+}
+.sheet-handle{
+  width:40px; height:4px; background:var(--border2);
+  border-radius:2px; margin:0 auto 16px;
+}
+.sheet-title{
+  font-family:'Orbitron',monospace; font-size:13px; font-weight:700;
+  letter-spacing:3px; color:var(--accent); text-align:center; margin-bottom:4px;
+}
+.sheet-sub{
+  font-family:'Share Tech Mono',monospace; font-size:9px;
+  color:var(--low); text-align:center; letter-spacing:2px; margin-bottom:16px;
+}
+.foul-opts{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:12px; }
+.foul-opt{
+  padding:16px 8px; border-radius:10px; border:1px solid var(--border2);
+  background:var(--dim); color:#e74c3c;
+  font-family:'Orbitron',monospace; font-size:22px; font-weight:900;
+  cursor:pointer; transition:all .15s; display:flex;
+  flex-direction:column; gap:2px; align-items:center;
+}
+.foul-opt:active{ transform:scale(0.93); background:rgba(192,57,43,0.15); border-color:#e74c3c; }
+.foul-opt small{ font-family:'Share Tech Mono',monospace; font-size:7px; color:var(--low); letter-spacing:1px; }
+.foul-custom-row{ display:flex; gap:8px; margin-bottom:12px; }
+.foul-custom-input{
+  flex:1; padding:13px 14px; background:var(--dim); border:1px solid var(--border2);
+  border-radius:10px; color:#e74c3c; font-family:'Orbitron',monospace;
+  font-size:18px; font-weight:700; outline:none; text-align:center; -webkit-appearance:none;
+}
+.foul-custom-input:focus{ border-color:#e74c3c; }
+.foul-custom-btn{
+  padding:13px 20px; border-radius:10px; border:1px solid #e74c3c55;
+  background:rgba(192,57,43,0.12); color:#e74c3c;
+  font-family:'Orbitron',monospace; font-size:12px; font-weight:700;
+  letter-spacing:1px; cursor:pointer; transition:.15s;
+}
+.foul-custom-btn:active{ transform:scale(0.95); background:rgba(192,57,43,0.25); }
+.sheet-cancel{
+  width:100%; padding:14px; border-radius:10px; border:1px solid var(--border);
+  background:var(--dim); color:var(--mid); font-family:'Share Tech Mono',monospace;
+  font-size:11px; letter-spacing:2px; cursor:pointer; transition:.15s;
+}
+.sheet-cancel:active{ background:var(--surface2); color:var(--hi); }
+
+/* Winner modal */
+.winner-box{ text-align:center; padding:8px 0 16px; }
+.winner-label{
+  font-family:'Share Tech Mono',monospace; font-size:9px;
+  letter-spacing:3px; color:var(--low); margin-bottom:8px;
+}
+.winner-name{
+  font-family:'Orbitron',monospace; font-size:26px; font-weight:900;
+  color:var(--accent); letter-spacing:2px; margin-bottom:4px;
+  animation:winnerPop .5s cubic-bezier(.34,1.6,.64,1);
+}
+.winner-score{
+  font-family:'Share Tech Mono',monospace; font-size:16px;
+  color:var(--mid); letter-spacing:4px; margin-bottom:24px;
+}
+.modal-btns{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.modal-btn{
+  padding:16px; border-radius:10px; border:1px solid var(--border2);
+  background:var(--dim); color:var(--hi); font-family:'Share Tech Mono',monospace;
+  font-size:11px; letter-spacing:2px; cursor:pointer; transition:.15s;
+}
+.modal-btn:active{ background:var(--surface2); }
+.modal-btn.primary{ background:rgba(76,255,138,0.12); border-color:var(--accent); color:var(--accent); }
+.modal-btn.primary:active{ background:rgba(76,255,138,0.22); }
+
+/* ─── TOAST ─── */
+.toast{
+  position:fixed; top:calc(var(--safe-top) + 60px); left:50%; transform:translateX(-50%);
+  background:var(--surface2); border:1px solid var(--border2);
+  border-radius:20px; padding:8px 16px;
+  font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:1px;
+  color:var(--accent); z-index:9998; white-space:nowrap;
+  animation:toastIn .3s cubic-bezier(.34,1.3,.64,1);
+  pointer-events:none;
+}
+.toast.warn{ color:var(--warn); }
+.toast.err{ color:var(--danger); }
+
+/* ─── CONFETTI CANVAS ─── */
+#confettiCanvas{
+  position:fixed; inset:0; pointer-events:none; z-index:9990;
+}
+
+/* ─── SYNC INDICATOR ─── */
+.sync-bar{
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  padding:5px 12px; background:rgba(76,255,138,0.06);
+  border-bottom:1px solid rgba(76,255,138,0.12);
+  font-family:'Share Tech Mono',monospace; font-size:8px;
+  letter-spacing:2px; color:var(--accent); flex-shrink:0;
+}
+.sync-bar.offline{ color:var(--low); background:transparent; border-color:transparent; }
+.sync-dot{ width:5px; height:5px; border-radius:50%; background:var(--accent); animation:livePulse 1.5s infinite; }
+.sync-bar.offline .sync-dot{ background:var(--low); animation:none; }
+
+/* ─── UTILITY ─── */
+.hidden{ display:none !important; }
+
+/* ─── ANIMATIONS ─── */
+@keyframes pulse{
+  0%,100%{ opacity:1; transform:scale(1); }
+  50%{ opacity:0.6; transform:scale(0.85); }
+}
+@keyframes livePulse{
+  0%,100%{ opacity:1; }
+  50%{ opacity:0.4; }
+}
+@keyframes slideIn{
+  from{ opacity:0; transform:translateX(-8px); }
+  to{ opacity:1; transform:translateX(0); }
+}
+@keyframes cardIn{
+  from{ opacity:0; transform:translateY(10px); }
+  to{ opacity:1; transform:translateY(0); }
+}
+@keyframes slideUp{
+  from{ transform:translateY(60px); opacity:0; }
+  to{ transform:translateY(0); opacity:1; }
+}
+@keyframes fadeIn{
+  from{ opacity:0; }
+  to{ opacity:1; }
+}
+@keyframes scaleIn{
+  from{ opacity:0; transform:scale(0.88); }
+  to{ opacity:1; transform:scale(1); }
+}
+@keyframes flashWarn{
+  0%,100%{ background:var(--bg); }
+  50%{ background:rgba(231,76,60,0.08); }
+}
+@keyframes scoreBump{
+  0%{ transform:scale(1); }
+  40%{ transform:scale(1.18); }
+  70%{ transform:scale(0.96); }
+  100%{ transform:scale(1); }
+}
+@keyframes scoreFlash{
+  0%{ background:rgba(76,255,138,0); }
+  20%{ background:rgba(76,255,138,0.08); }
+  100%{ background:rgba(76,255,138,0); }
+}
+@keyframes winnerPop{
+  0%{ transform:scale(0); opacity:0; }
+  60%{ transform:scale(1.1); opacity:1; }
+  100%{ transform:scale(1); }
+}
+@keyframes toastIn{
+  from{ opacity:0; transform:translate(-50%,-10px); }
+  to{ opacity:1; transform:translate(-50%,0); }
+}
+@keyframes ballRipple{
+  0%{ box-shadow: inset 0 -4px 8px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.2), 0 2px 8px rgba(0,0,0,0.5), 0 0 0 0 rgba(76,255,138,0.6); }
+  100%{ box-shadow: inset 0 -4px 8px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.2), 0 2px 8px rgba(0,0,0,0.5), 0 0 0 24px rgba(76,255,138,0); }
+}
+
+@media(max-width:375px){
+  .p-score{ font-size:40px; }
+  .ball-btn .pts{ font-size:11px; }
+  .ball-btn .bname{ font-size:5px; }
+  .ball-grid{ gap:5px; }
+}
+
+/* ─── CREDIT CARD ─── */
+.credit-card{
+  position:relative; width:100%; max-width:320px;
+  margin:18px auto 0;
+  border-radius:16px; overflow:hidden;
+  background:linear-gradient(135deg, #0e1812 0%, #141f18 40%, #0a1510 100%);
+  border:1px solid rgba(76,255,138,0.18);
+  box-shadow:
+    0 0 0 1px rgba(76,255,138,0.08),
+    0 8px 32px rgba(0,0,0,0.6),
+    inset 0 1px 0 rgba(76,255,138,0.12);
+  cursor:default;
+  animation: cardIn .4s ease;
+  text-align: center;
+}
+.credit-card-inner{ padding:18px 20px 16px; position:relative; z-index:1; }
+.credit-shimmer{
+  position:absolute; inset:0;
+  background:linear-gradient(105deg,transparent 40%,rgba(76,255,138,0.04) 50%,transparent 60%);
+  animation:shimmer 4s ease-in-out infinite;
+}
+@keyframes shimmer{
+  0%{ transform:translateX(-100%); }
+  100%{ transform:translateX(200%); }
+}
+.credit-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+.credit-chip{
+  width:36px; height:28px; border-radius:5px;
+  background:linear-gradient(135deg,#2a3d2e,#1a2a1e);
+  border:1px solid rgba(76,255,138,0.25);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:inset 0 1px 0 rgba(76,255,138,0.15);
+}
+.credit-chip-lines{ display:flex; flex-direction:column; gap:4px; width:22px; }
+.credit-chip-lines span{
+  display:block; height:2px; border-radius:1px;
+  background:linear-gradient(90deg,rgba(76,255,138,0.5),rgba(76,255,138,0.2));
+}
+.credit-signal{ display:flex; align-items:center; gap:2px; }
+.credit-arc{
+  border:2px solid transparent; border-right-color:rgba(76,255,138,0.4);
+  border-radius:50%; transform:rotate(-45deg);
+}
+.credit-arc.s1{ width:8px; height:8px; }
+.credit-arc.s2{ width:14px; height:14px; border-right-color:rgba(76,255,138,0.55); }
+.credit-arc.s3{ width:20px; height:20px; border-right-color:rgba(76,255,138,0.7); }
+
+.credit-name-row{ margin-bottom:12px; }
+.credit-label{
+  font-family:'Share Tech Mono',monospace; font-size:7px;
+  letter-spacing:3px; color:var(--low); margin-bottom:4px;
+  text-align: center;
+}
+.credit-name{
+  font-family:'Orbitron',monospace; font-size:18px; font-weight:900;
+  letter-spacing:4px; color:var(--accent);
+  text-shadow:0 0 14px rgba(76,255,138,0.35);
+}
+.credit-role{
+  font-family:'Share Tech Mono',monospace; font-size:8px;
+  letter-spacing:1px; color:var(--mid); margin-top:3px;
+  line-height:1.4;
+}
+.credit-bottom{
+  display:flex; justify-content:space-between; align-items:flex-end;
+  padding-top:10px; border-top:1px solid rgba(76,255,138,0.1);
+}
+.credit-tag{
+  font-family:'Share Tech Mono',monospace; font-size:7px;
+  letter-spacing:2px; color:var(--low);
+}
+.credit-ver{
+  font-family:'Orbitron',monospace; font-size:10px; font-weight:700;
+  color:rgba(76,255,138,0.4); letter-spacing:2px;
+}
+
+/* ─── ANALYTICS ─── */
+.analytics-sheet{
+  max-height:90dvh; overflow-y:auto; border-radius:20px 20px 0 0;
+  scrollbar-width:none;
+}
+.analytics-sheet::-webkit-scrollbar{ display:none; }
+
+.an-score-bar{
+  display:grid; grid-template-columns:auto 1fr auto;
+  align-items:center; gap:10px; margin-bottom:16px;
+  background:var(--dim); border:1px solid var(--border2);
+  border-radius:10px; padding:12px;
+}
+.an-score-side{ text-align:center; min-width:52px; }
+.an-score-side.right{ text-align:center; }
+.an-sname{
+  font-family:'Share Tech Mono',monospace; font-size:7px;
+  letter-spacing:2px; color:var(--low); margin-bottom:3px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:60px;
+}
+.an-sval{
+  font-family:'Orbitron',monospace; font-size:24px; font-weight:900;
+  color:var(--accent); line-height:1;
+}
+.an-score-track{
+  height:8px; border-radius:4px; background:var(--border);
+  display:flex; overflow:hidden; gap:2px;
+}
+.an-score-fill{
+  height:100%; transition:width .5s cubic-bezier(.34,1.1,.64,1);
+  border-radius:4px;
+}
+.an-score-fill.left{ background:linear-gradient(90deg,var(--accent),rgba(76,255,138,0.5)); }
+.an-score-fill.right{ background:linear-gradient(90deg,rgba(52,152,219,0.5),#3498db); }
+
+.an-section-lbl{
+  font-family:'Share Tech Mono',monospace; font-size:8px;
+  letter-spacing:2px; color:var(--low); margin-bottom:10px; margin-top:14px;
+}
+.an-grid{
+  display:grid; grid-template-columns:1fr 1fr; gap:8px;
+}
+.an-stat{
+  background:var(--dim); border:1px solid var(--border2);
+  border-radius:10px; padding:12px 12px;
+  display:flex; flex-direction:column; gap:6px;
+}
+.an-stat-lbl{
+  font-family:'Share Tech Mono',monospace; font-size:7px;
+  letter-spacing:2px; color:var(--low); text-transform:uppercase;
+}
+.an-stat-bars{ display:flex; flex-direction:column; gap:3px; }
+.an-stat-row{ display:flex; align-items:center; gap:6px; }
+.an-stat-row-name{
+  font-family:'Share Tech Mono',monospace; font-size:8px;
+  color:var(--mid); width:38px; flex-shrink:0; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap;
+}
+.an-bar-track{
+  flex:1; height:6px; background:var(--border); border-radius:3px; overflow:hidden;
+}
+.an-bar-fill{
+  height:100%; border-radius:3px; transition:width .6s cubic-bezier(.34,1.1,.64,1);
+}
+.an-bar-fill.p0{ background:var(--accent); }
+.an-bar-fill.p1{ background:#3498db; }
+.an-stat-row-val{
+  font-family:'Orbitron',monospace; font-size:9px; font-weight:700;
+  color:var(--hi); width:26px; text-align:right; flex-shrink:0;
+}
+
+.an-balls{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+.an-ball{
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+}
+.an-ball-dot{
+  width:28px; height:28px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Orbitron',monospace; font-size:10px; font-weight:900; color:#fff;
+  box-shadow:inset 0 -3px 6px rgba(0,0,0,0.5),inset 0 2px 4px rgba(255,255,255,0.2);
+  position:relative;
+}
+.an-ball-dot::after{
+  content:''; position:absolute; top:10%; left:18%; width:26%; height:22%;
+  background:rgba(255,255,255,0.3); border-radius:50%; transform:rotate(-35deg);
+}
+.an-ball-lbl{
+  font-family:'Share Tech Mono',monospace; font-size:6px;
+  letter-spacing:.5px; color:var(--low);
+}
+.an-ball-count{
+  font-family:'Orbitron',monospace; font-size:11px; font-weight:700; color:var(--hi);
+}
+
+@media(max-width:375px){
+  .credit-name{ font-size:15px; }
+  .an-grid{ grid-template-columns:1fr; }
+  .an-balls{ gap:4px; }
+  .an-ball-dot{ width:24px; height:24px; font-size:8px; }
+}
+
+</style>
+</head>
+<body>
+
+<canvas id="confettiCanvas"></canvas>
+
+<div id="app">
+
+  <!-- ═══ HEADER ═══ -->
+  <header class="hdr">
+    <div class="hdr-title">
+      <img class="hdr-logo-img" src="/logo.png" alt="logo" onerror="this.style.display='none'"/>
+      <span class="hdr-logo-text">SNOOKER</span>
+    </div>
+    <div class="hdr-right" id="hdrRight">
+      <!-- populated by JS -->
+    </div>
+  </header>
+
+  <!-- ═══ LOBBY SCREEN ═══ -->
+  <div id="lobbyScreen" class="screen">
+    <div style="padding:16px;display:flex;flex-direction:column;gap:12px;flex:1;">
+      <div class="lobby-logo">
+        <img class="lobby-logo-img" src="/logo.png" alt="Snooker Logo" onerror="this.style.display='none'"/>
+        <div class="big">SNOOKER SCORE COUNTER</div>
+        <div class="sub">// MULTI-TABLE SCOREBOARD //</div>
+
+        <!-- CREDIT CARD -->
+        <div class="credit-card">
+          
+        </div>
+      </div>
+
+      <button class="new-match-btn" onclick="goSetup()">
+        <span style="font-size:16px">＋</span> CREATE MATCH
+      </button>
+
+      <div>
+        <div class="lobby-section-lbl" style="margin-bottom:10px;">JOIN MATCH BY CODE</div>
+        <div class="join-bar">
+          <input class="join-input" id="joinCodeInput" type="text" maxlength="6"
+            placeholder="ENTER CODE" inputmode="text" autocomplete="off"
+            onkeydown="if(event.key==='Enter')joinByCode()"/>
+          <button class="join-btn" onclick="joinByCode()">JOIN</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="lobby-section-lbl" style="margin-bottom:10px;">ACTIVE MATCHES</div>
+        <div class="match-list" id="matchList">
+          <div class="no-matches">NO MATCHES YET<br>CREATE ONE TO START</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SETUP SCREEN ═══ -->
+  <div id="setupScreen" class="screen hidden">
+    <div style="padding:16px;flex:1;">
+      <div class="setup-back" onclick="goLobby()">← BACK TO LOBBY</div>
+      <div class="setup-logo">
+        <div>
+          <div class="big">NEW MATCH</div>
+          <div class="sub">// MATCH SETUP //</div>
+        </div>
+      </div>
+
+      <!-- Room code is pre-generated -->
+      <div class="room-code-box">
+        <div>
+          <div class="room-code-lbl">SHARE CODE WITH FRIENDS</div>
+          <div class="room-code-val" id="pendingRoomCode">——</div>
+        </div>
+        <button class="room-code-copy" onclick="copyRoomCode()">COPY</button>
+      </div>
+
+      <div class="field-row">
+        <div class="field-wrap">
+          <div class="field-label">PLAYER 1</div>
+          <input type="text" id="p1" placeholder="ALPHA" maxlength="50"/>
+        </div>
+        <div class="field-wrap">
+          <div class="field-label">PLAYER 2</div>
+          <input type="text" id="p2" placeholder="BRAVO" maxlength="50"/>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-wrap">
+          <div class="field-label">RED BALLS</div>
+          <select id="redsCount">
+            <option value="6">6 REDS</option>
+            <option value="10">10 REDS</option>
+            <option value="15" selected>15 REDS</option>
+          </select>
+        </div>
+        <div class="field-wrap">
+          <div class="field-label">BREAK FIRST</div>
+          <select id="breakFirst">
+            <option value="0">PLAYER 1</option>
+            <option value="1">PLAYER 2</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-wrap">
+          <div class="field-label">FRAMES TO PLAY</div>
+          <select id="framesToPlay">
+            <option value="1">BEST OF 1</option>
+            <option value="3" selected>BEST OF 3</option>
+            <option value="5">BEST OF 5</option>
+            <option value="7">BEST OF 7</option>
+            <option value="9">BEST OF 9</option>
+            <option value="11">BEST OF 11</option>
+            <option value="19">BEST OF 19</option>
+            <option value="25">BEST OF 25</option>
+            <option value="35">BEST OF 35</option>
+          </select>
+        </div>
+        <div class="field-wrap" style="display:flex;align-items:flex-end;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--low);letter-spacing:1px;padding-bottom:13px;">First to win majority of frames wins match</div>
+        </div>
+      </div>
+
+      <button class="start-btn" onclick="startGame()">▸ START MATCH</button>
+    </div>
+  </div>
+
+  <!-- ═══ GAME SCREEN ═══ -->
+  <div id="gameScreen" class="screen hidden" style="display:flex;flex-direction:column;overflow:hidden;flex:1;">
+
+    <!-- SYNC BAR -->
+    <div class="sync-bar offline" id="syncBar">
+      <div class="sync-dot"></div>
+      <span id="syncLabel">CONNECTING…</span>
+    </div>
+
+    <!-- SCOREBOARD -->
+    <div class="scoreboard" id="scoreboard">
+      <div class="player-side left" id="playerCell0">
+        <div class="p-tag">P-01</div>
+        <div class="p-name" id="pname0">—</div>
+        <div class="p-score" id="pscore0">0</div>
+        <div class="p-break" id="pbreak0">BRK <span>—</span></div>
+        <div class="active-line"></div>
+      </div>
+
+      <div class="score-mid">
+        <div class="vs">VS</div>
+        <div class="turn-dot" id="turnDot"></div>
+        <div id="frameScoreMid" style="margin-top:4px;font-family:'Orbitron',monospace;font-size:9px;font-weight:700;color:var(--mid);letter-spacing:1px;white-space:nowrap;">0 - 0</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:6px;color:var(--low);letter-spacing:1px;margin-top:1px;" id="framesMidLabel">FRAMES</div>
+      </div>
+
+      <div class="player-side right" id="playerCell1">
+        <div class="p-tag">P-02</div>
+        <div class="p-name" id="pname1">—</div>
+        <div class="p-score" id="pscore1">0</div>
+        <div class="p-break" id="pbreak1">BRK <span>—</span></div>
+        <div class="active-line"></div>
+      </div>
+    </div>
+
+    <!-- STATUS STRIP -->
+    <div class="status-strip">
+      <div class="stat-cell">
+        <div class="stat-lbl">TARGET</div>
+        <div class="stat-val phase" id="nextTarget">RED</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-lbl">REDS</div>
+        <div class="stat-val" id="redsOnTable">15</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-lbl">AVAIL</div>
+        <div class="stat-val" id="ptsAvail">147</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-lbl">PHASE</div>
+        <div class="stat-val phase" id="gamePhase">REDS</div>
+      </div>
+    </div>
+
+    <!-- BALLS -->
+    <div class="ball-section">
+      <div class="section-lbl">// POT BALL</div>
+      <div class="ball-grid">
+        <button class="ball-btn b-red"    id="btn-red"    onclick="potBall('red',1)">
+          <span class="pts">1</span><span class="bname">RED</span>
+        </button>
+        <button class="ball-btn b-yellow" id="btn-yellow" onclick="potBall('yellow',2)">
+          <span class="pts">2</span><span class="bname">YLW</span>
+        </button>
+        <button class="ball-btn b-green"  id="btn-green"  onclick="potBall('green',3)">
+          <span class="pts">3</span><span class="bname">GRN</span>
+        </button>
+        <button class="ball-btn b-brown"  id="btn-brown"  onclick="potBall('brown',4)">
+          <span class="pts">4</span><span class="bname">BRN</span>
+        </button>
+        <button class="ball-btn b-blue"   id="btn-blue"   onclick="potBall('blue',5)">
+          <span class="pts">5</span><span class="bname">BLU</span>
+        </button>
+        <button class="ball-btn b-pink"   id="btn-pink"   onclick="potBall('pink',6)">
+          <span class="pts">6</span><span class="bname">PNK</span>
+        </button>
+        <button class="ball-btn b-black"  id="btn-black"  onclick="potBall('black',7)">
+          <span class="pts">7</span><span class="bname">BLK</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="action-section">
+      <div class="action-grid">
+        <button class="act-btn miss-btn" onclick="missShot()">
+          <span class="act-icon">◈</span><span>MISS</span>
+        </button>
+        <button class="act-btn foul-btn" onclick="openFoulDialog()">
+          <span class="act-icon">⚠</span><span>FOUL</span>
+        </button>
+        <button class="act-btn undo-btn" onclick="undo()">
+          <span class="act-icon">↩</span><span>UNDO</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- LOG -->
+    <div class="log-section">
+      <div class="section-lbl">// MATCH LOG</div>
+      <div class="log-scroll" id="logFeed"></div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ═══ FOUL DIALOG ═══ -->
+<div class="overlay hidden" id="foulOverlay" onclick="closeFoulDialog(event)">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">FOUL PENALTY</div>
+    <div class="sheet-sub">// POINTS AWARDED TO OPPONENT //</div>
+    <div class="foul-opts">
+      <div class="foul-opt" onclick="foul(4)">4<small>PTS</small></div>
+      <div class="foul-opt" onclick="foul(5)">5<small>PTS</small></div>
+      <div class="foul-opt" onclick="foul(6)">6<small>PTS</small></div>
+      <div class="foul-opt" onclick="foul(7)">7<small>PTS</small></div>
+    </div>
+    <div class="foul-custom-row">
+      <input class="foul-custom-input" type="number" id="customFoulPts"
+        placeholder="—" min="4" max="99" inputmode="numeric"/>
+      <button class="foul-custom-btn" onclick="foulCustom()">APPLY</button>
+    </div>
+
+    <!-- RED BALL FOUL SECTION -->
+    <div id="redFoulSection" style="margin-top:12px;padding:12px;background:rgba(192,57,43,0.08);border:1px solid rgba(192,57,43,0.3);border-radius:10px;">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2px;color:#e74c3c;margin-bottom:6px;">⚠ RED BALL FOUL</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--mid);margin-bottom:10px;line-height:1.5;">White potted after red — remove reds from table</div>
+      <div style="display:flex;align-items:center;gap:10px;justify-content:center;">
+        <button onclick="adjustRedFoulCount(-1)" style="width:36px;height:36px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;color:var(--hi);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
+        <div style="text-align:center;">
+          <div id="redFoulCount" style="font-family:'Orbitron',monospace;font-size:28px;font-weight:900;color:#e74c3c;line-height:1;">1</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:7px;color:var(--low);letter-spacing:1px;">REDS TO REMOVE</div>
+        </div>
+        <button onclick="adjustRedFoulCount(1)" style="width:36px;height:36px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;color:var(--hi);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
+      </div>
+      <button onclick="applyRedFoul()" style="width:100%;margin-top:10px;padding:11px;background:rgba(192,57,43,0.15);border:1px solid rgba(192,57,43,0.4);border-radius:8px;color:#e74c3c;font-family:'Orbitron',monospace;font-size:11px;font-weight:700;letter-spacing:2px;cursor:pointer;">APPLY RED FOUL</button>
+    </div>
+
+    <button class="sheet-cancel" onclick="closeFoulDialog()">CANCEL</button>
+  </div>
+</div>
+
+<!-- ═══ WINNER MODAL ═══ -->
+<div class="overlay center hidden" id="winnerModal">
+  <div class="sheet center-sheet">
+    <div class="winner-box">
+      <div class="winner-label" id="modalLabel">// FRAME COMPLETE //</div>
+      <div class="winner-name" id="modalWinner">—</div>
+      <div class="winner-score" id="modalScore">—</div>
+      <div id="modalFrameScore" style="margin-top:6px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--mid);letter-spacing:2px;display:none;"></div>
+    </div>
+    <div class="modal-btns" id="modalBtns">
+      <button class="modal-btn" onclick="restartToLobby()">LOBBY</button>
+      <button class="modal-btn" id="nextFrameBtn" style="display:none;" onclick="startNextFrame()">NEXT FRAME ▸</button>
+      <button class="modal-btn primary" onclick="closeModal()">DISMISS</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CONFIRM DELETE MODAL ═══ -->
+<div class="overlay center hidden" id="confirmDeleteModal">
+  <div class="sheet center-sheet">
+    <div class="winner-box">
+      <div class="winner-label">// REMOVE MATCH //</div>
+      <div class="winner-name" style="font-size:18px;color:var(--danger)">DELETE?</div>
+      <div class="winner-score" id="deleteMatchLabel" style="font-size:11px;margin-bottom:0">—</div>
+    </div>
+    <div class="modal-btns">
+      <button class="modal-btn" onclick="closeDeleteConfirm()">CANCEL</button>
+      <button class="modal-btn" style="border-color:#e74c3c55;color:#e74c3c;" onclick="confirmDelete()">DELETE</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ANALYTICS OVERLAY ═══ -->
+<div class="overlay hidden" id="analyticsOverlay" onclick="closeAnalytics(event)">
+  <div class="sheet analytics-sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">MATCH ANALYTICS</div>
+    <div class="sheet-sub" id="analyticsSubtitle">// LIVE STATISTICS //</div>
+
+    <!-- Score bar -->
+    <div class="an-score-bar" id="anScoreBar">
+      <div class="an-score-side left">
+        <div class="an-sname" id="anName0">P1</div>
+        <div class="an-sval" id="anScore0">0</div>
+      </div>
+      <div class="an-score-track">
+        <div class="an-score-fill left" id="anFill0" style="width:50%"></div>
+        <div class="an-score-fill right" id="anFill1" style="width:50%"></div>
+      </div>
+      <div class="an-score-side right">
+        <div class="an-sname" id="anName1">P2</div>
+        <div class="an-sval" id="anScore1">0</div>
+      </div>
+    </div>
+
+    <!-- Stat rows -->
+    <div class="an-grid" id="anGrid">
+      <!-- populated by JS -->
+    </div>
+
+    <!-- Ball breakdown -->
+    <div class="an-section-lbl">// BALL BREAKDOWN</div>
+    <div class="an-balls" id="anBalls">
+      <!-- populated by JS -->
+    </div>
+
+    <button class="sheet-cancel" style="margin-top:12px" onclick="closeAnalytics()">CLOSE</button>
+  </div>
+</div>
+
+<!-- ═══ SCRIPT ═══ -->
+<script>
+/* ══════════════════════════════════════════
+   FIREBASE CONFIGURATION
+   Free forever — no request limits for this scale.
+   Setup (2 min):
+   1. Go to https://console.firebase.google.com
+   2. Create project → Realtime Database → Create database
+      → Start in TEST MODE → pick any region
+   3. Copy your database URL (looks like:
+      https://your-app-default-rtdb.firebaseio.com)
+   4. Paste it below as FIREBASE_URL
+   ══════════════════════════════════════════ */
+const FIREBASE_URL = 'https://snooker-app-cc170-default-rtdb.asia-southeast1.firebasedatabase.app'; // e.g. https://myapp-default-rtdb.firebaseio.com
+
+/* ─── CONSTANTS ─── */
+const PHASE = { REDS:'REDS', COLORS:'COLOURS', ENDED:'ENDED' };
+const COLOR_ORDER = ['yellow','green','brown','blue','pink','black'];
+const LS_MATCHES   = 'snk_matches_v2';
+
+let G = {};                  // current game state
+let currentRoomCode = null;  // active match code
+let logSeq = 0;
+let firebaseListener = null; // active SSE connection for real-time updates
+let pendingRoomCode = null;  // code pre-generated on setup screen
+
+/* ══════════════════════════════════════════════
+   LOCAL STORAGE — multi-match persistence
+   ══════════════════════════════════════════════ */
+function loadMatches(){
+  try{ return JSON.parse(localStorage.getItem(LS_MATCHES)||'{}'); }
+  catch(e){ return {}; }
+}
+
+/* ── Memory limits ──────────────────────────────
+   MAX_MATCHES  : keep at most this many matches
+   MAX_ENDED_AGE: auto-delete ended matches older than this (ms)
+   MAX_LS_BYTES : warn + prune if localStorage blob exceeds this
+   ─────────────────────────────────────────────── */
+const MAX_MATCHES   = 20;
+const MAX_ENDED_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
+const MAX_LS_BYTES  = 3 * 1024 * 1024;           // 3 MB safety ceiling
+
+function pruneMatches(all){
+  const now = Date.now();
+
+  // 1. Drop ended matches older than 7 days
+  for(const code of Object.keys(all)){
+    const m = all[code];
+    if(m.phase === PHASE.ENDED && (now - (m.updatedAt||0)) > MAX_ENDED_AGE){
+      delete all[code];
+    }
+  }
+
+  // 2. If still over MAX_MATCHES, drop oldest ended first, then oldest overall
+  let codes = Object.keys(all);
+  if(codes.length > MAX_MATCHES){
+    const sorted = codes.sort((a,b)=>(all[a].updatedAt||0)-(all[b].updatedAt||0));
+    // prefer deleting ended ones first
+    const ended  = sorted.filter(c=>all[c].phase===PHASE.ENDED);
+    const active = sorted.filter(c=>all[c].phase!==PHASE.ENDED);
+    const ordered = [...ended, ...active];
+    while(Object.keys(all).length > MAX_MATCHES && ordered.length){
+      delete all[ordered.shift()];
+    }
+  }
+
+  return all;
+}
+
+function saveMatch(code, state){
+  let all = loadMatches();
+  // Strip heavy fields before saving
+  all[code] = { ...state, history:[], logs:(state.logs||[]).slice(0,40), updatedAt: Date.now() };
+
+  // Prune old / excess matches
+  all = pruneMatches(all);
+
+  // Check total size
+  const blob = JSON.stringify(all);
+  if(blob.length > MAX_LS_BYTES){
+    // Emergency: drop oldest half regardless of status
+    const sorted = Object.keys(all).sort((a,b)=>(all[a].updatedAt||0)-(all[b].updatedAt||0));
+    sorted.slice(0, Math.floor(sorted.length/2)).forEach(c=>delete all[c]);
+    toast('OLD MATCHES AUTO-CLEANED', 'warn');
+  }
+
+  try{
+    localStorage.setItem(LS_MATCHES, JSON.stringify(all));
+  } catch(e){
+    // localStorage full — nuclear option: clear all ended matches
+    const clean = {};
+    Object.keys(all).forEach(c=>{ if(all[c].phase!==PHASE.ENDED) clean[c]=all[c]; });
+    try{ localStorage.setItem(LS_MATCHES, JSON.stringify(clean)); } catch(_){}
+    toast('STORAGE FULL — ENDED MATCHES CLEARED', 'err');
+  }
+}
+
+function deleteMatch(code){
+  const all = loadMatches();
+  delete all[code];
+  localStorage.setItem(LS_MATCHES, JSON.stringify(all));
+}
+
+function generateCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:6}, ()=>chars[Math.floor(Math.random()*chars.length)]).join('');
+}
+
+/* ══════════════════════════════════════════════
+   FIREBASE REALTIME DATABASE SYNC
+   Uses Firebase's REST streaming (SSE) — no SDK needed.
+   Devices get pushed updates instantly, no polling.
+   Free forever on Firebase Spark plan.
+   ══════════════════════════════════════════════ */
+
+function firebaseConfigured(){
+  return FIREBASE_URL !== 'YOUR_FIREBASE_URL_HERE' && FIREBASE_URL.startsWith('https://');
+}
+
+/* Path for a specific match room */
+function roomUrl(code){
+  return `${FIREBASE_URL}/rooms/${code}.json`;
+}
+
+/* ── WRITE: push current game state to Firebase ── */
+async function firebaseWrite(code, state){
+  if(!firebaseConfigured()) return false;
+  try{
+    const payload = { ...state, history:[], logs:(state.logs||[]).slice(0,40) };
+    const r = await fetch(roomUrl(code), {
+      method:  'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload)
+    });
+    return r.ok;
+  } catch(e){ console.warn('firebaseWrite error', e); return false; }
+}
+
+/* ── LISTEN: real-time push via Server-Sent Events ──
+   Firebase REST supports SSE — open one connection,
+   get pushed every time data changes. No polling needed. */
+function firebaseListen(code){
+  firebaseStopListen();
+  if(!firebaseConfigured()){
+    setSyncBar(false, 'LOCAL ONLY — ADD FIREBASE URL TO SYNC');
+    return;
+  }
+  setSyncBar(false, 'CONNECTING…');
+
+  const es = new EventSource(roomUrl(code));
+  firebaseListener = es;
+
+  es.addEventListener('put', (e) => {
+    try{
+      const msg  = JSON.parse(e.data);
+      const remote = msg.data;   // null if room doesn't exist yet
+      if(!remote || !remote.scores || !remote.players) return;
+
+      const remoteTs = remote.updatedAt || 0;
+
+      // Ignore if this is our own write (we already have it in G)
+      // We detect this by comparing timestamps — if remote matches what
+      // we just wrote, skip (avoids flicker)
+      if(remoteTs > 0 && remoteTs === G.updatedAt && !G._pendingJoin) return;
+
+      const prevScores = [...(G.scores || [0,0])];
+      const wasPending = !!(G._pendingJoin);
+
+      G = { ...remote, history: G.history || [], _pendingJoin: false };
+      logSeq = (G.logs && G.logs.length) || 0;
+
+      setSyncBar(true, 'LIVE · CODE ' + code);
+      if(wasPending) toast('MATCH SYNCED ✓');
+      if(prevScores[0] !== G.scores[0]) animateScore(0);
+      if(prevScores[1] !== G.scores[1]) animateScore(1);
+      render();
+      // Mirror to localStorage
+      const all = loadMatches();
+      all[code] = { ...G, history:[], logs:(G.logs||[]).slice(0,40) };
+      try{ localStorage.setItem(LS_MATCHES, JSON.stringify(all)); } catch(_){}
+      renderLobby();
+    } catch(err){ console.warn('firebase put parse error', err); }
+  });
+
+  es.addEventListener('patch', (e) => {
+    // patch events arrive for partial updates — treat same as put
+    es.dispatchEvent(new MessageEvent('put', { data: e.data }));
+  });
+
+  es.onerror = () => {
+    setSyncBar(false, 'RECONNECTING…');
+  };
+
+  es.onopen = () => {
+    setSyncBar(true, 'LIVE · CODE ' + code);
+  };
+}
+
+function firebaseStopListen(){
+  if(firebaseListener){ firebaseListener.close(); firebaseListener = null; }
+}
+
+/* ── publishAll: save locally + push to Firebase ── */
+async function publishAll(){
+  if(!currentRoomCode) return;
+  G.updatedAt = Date.now();
+  // Save to localStorage immediately
+  saveMatch(currentRoomCode, G);
+  renderLobby();
+  // Push to Firebase (SSE listener on other devices will fire automatically)
+  if(firebaseConfigured()){
+    const ok = await firebaseWrite(currentRoomCode, G);
+    if(!ok) setSyncBar(false, 'WRITE FAILED — CHECK FIREBASE URL');
+  }
+}
+
+/* Stubs so existing call-sites work unchanged */
+function connectAbly(code){ firebaseListen(code); }
+function disconnectAbly(){ firebaseStopListen(); }
+function publishState(){ publishAll(); }
+
+function setSyncBar(online, label){
+  const bar = document.getElementById('syncBar');
+  const lbl = document.getElementById('syncLabel');
+  bar.className = 'sync-bar' + (online?'':' offline');
+  lbl.textContent = label;
+}
+
+/* ══════════════════════════════════════════════
+   SCREEN NAVIGATION
+   ══════════════════════════════════════════════ */
+function showScreen(id){
+  ['lobbyScreen','setupScreen','gameScreen'].forEach(s=>{
+    const el = document.getElementById(s);
+    if(el) el.classList.toggle('hidden', s!==id);
+  });
+  updateHeader(id);
+}
+
+function updateHeader(screen){
+  const right = document.getElementById('hdrRight');
+  if(screen==='gameScreen'){
+    right.innerHTML = `
+      <div class="room-pill" onclick="copyRoomCode()" title="Copy code to share">
+        <div class="room-pill-dot"></div>
+        <span class="room-pill-code">${currentRoomCode||''}</span>
+      </div>
+      <div class="icon-btn" onclick="openAnalytics()" title="Match Analytics">!</div>
+      <div class="icon-btn" onclick="undo()" title="Undo">↩</div>
+      <div class="icon-btn" onclick="confirmRestart()" title="Restart">⟳</div>
+    `;
+  } else {
+    right.innerHTML = '';
+  }
+}
+
+function goLobby(){
+  disconnectAbly();
+  currentRoomCode = null;
+  G = {};
+  showScreen('lobbyScreen');
+  renderLobby();
+}
+
+function goSetup(){
+  pendingRoomCode = generateCode();
+  document.getElementById('pendingRoomCode').textContent = pendingRoomCode;
+  showScreen('setupScreen');
+}
+
+function copyRoomCode(){
+  const code = currentRoomCode || pendingRoomCode;
+  if(!code) return;
+  navigator.clipboard.writeText(code).then(()=>{
+    toast('CODE COPIED: ' + code);
+  }).catch(()=>{
+    toast('CODE: ' + code);
+  });
+}
+
+/* ══════════════════════════════════════════════
+   LOBBY RENDER
+   ══════════════════════════════════════════════ */
+function renderLobby(){
+  const all = loadMatches();
+  const list = document.getElementById('matchList');
+  const codes = Object.keys(all).sort((a,b)=>(all[b].updatedAt||0)-(all[a].updatedAt||0));
+
+  if(!codes.length){
+    list.innerHTML = '<div class="no-matches">NO MATCHES YET<br>CREATE ONE TO START</div>';
+    return;
+  }
+
+  list.innerHTML = codes.map(code=>{
+    const m = all[code];
+    const ended = m.phase===PHASE.ENDED;
+    const p1 = (m.players&&m.players[0])||'P1';
+    const p2 = (m.players&&m.players[1])||'P2';
+    const s0 = (m.scores&&m.scores[0])||0;
+    const s1 = (m.scores&&m.scores[1])||0;
+    const fs = m.frameScores||[0,0];
+    const tf = m.totalFrames||1;
+    const fn = m.frameNumber||1;
+    const frameInfo = tf>1 ? `<span class="match-tag">FRAMES ${fs[0]}-${fs[1]} · F${fn}/${tf}</span>` : '';
+    return `
+      <div class="match-card${ended?' ended':''}" onclick="joinMatch('${code}')">
+        <div class="match-card-top">
+          <div class="match-card-names">${p1} vs ${p2}</div>
+          <div class="match-card-score">${s0} — ${s1}</div>
+        </div>
+        <div class="match-card-meta">
+          <span class="match-tag" style="font-size:9px;letter-spacing:2px;font-family:'Orbitron',monospace">${code}</span>
+          <span class="match-tag ${ended?'ended-tag':'live'}">${ended?'ENDED':'LIVE'}</span>
+          ${frameInfo}
+          <span class="match-tag">${m.redsRemaining||0} REDS LEFT</span>
+        </div>
+        <div class="match-card-del" onclick="event.stopPropagation();askDelete('${code}')">🗑</div>
+      </div>
+    `;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════
+   JOIN MATCH
+   ══════════════════════════════════════════════ */
+function joinMatch(code){
+  const all = loadMatches();
+  if(!all[code]){ toast('MATCH NOT FOUND', 'err'); return; }
+  currentRoomCode = code;
+  G = {...all[code], history:[], _pendingJoin: true};
+  logSeq = (G.logs && G.logs.length) || 0;
+  enterGameScreen();
+  setSyncBar(false, 'FETCHING LATEST STATE…');
+}
+
+function joinByCode(){
+  const raw = document.getElementById('joinCodeInput').value.trim().toUpperCase();
+  if(!raw){ return; }
+  document.getElementById('joinCodeInput').value='';
+
+  // Already saved locally — just open it
+  const all = loadMatches();
+  if(all[raw]){ joinMatch(raw); return; }
+
+  // Not saved locally — enter with placeholder; polling will pull remote state
+  currentRoomCode = raw;
+  G = { players:['—','—'], scores:[0,0], breaks:[0,0], cur:0,
+        redsRemaining:15, phase:PHASE.REDS, nextIsRed:true,
+        colourIndex:0, history:[], logs:[], _pendingJoin:true };
+  enterGameScreen();
+  setSyncBar(false, 'FETCHING MATCH STATE…');
+  toast('JOINING ' + raw + '…');
+}
+
+function enterGameScreen(){
+  showScreen('gameScreen');
+  connectAbly(currentRoomCode);  // starts JSONBin polling
+  render();
+}
+
+/* ══════════════════════════════════════════════
+   DELETE MATCH
+   ══════════════════════════════════════════════ */
+let pendingDeleteCode = null;
+function askDelete(code){
+  const all = loadMatches();
+  const m = all[code];
+  if(!m) return;
+  pendingDeleteCode = code;
+  document.getElementById('deleteMatchLabel').textContent =
+    `${(m.players&&m.players[0])||'P1'} vs ${(m.players&&m.players[1])||'P2'} · ${code}`;
+  document.getElementById('confirmDeleteModal').classList.remove('hidden');
+}
+function closeDeleteConfirm(){ document.getElementById('confirmDeleteModal').classList.add('hidden'); pendingDeleteCode=null; }
+function confirmDelete(){
+  if(pendingDeleteCode){ deleteMatch(pendingDeleteCode); pendingDeleteCode=null; }
+  closeDeleteConfirm();
+  renderLobby();
+  toast('MATCH REMOVED');
+}
+
+/* ══════════════════════════════════════════════
+   GAME LOGIC
+   ══════════════════════════════════════════════ */
+function calcPointsLeft(s){
+  if(s.phase===PHASE.COLORS){
+    const vals = {yellow:2,green:3,brown:4,blue:5,pink:6,black:7};
+    return COLOR_ORDER.slice(s.colourIndex).reduce((a,c)=>a+vals[c],0);
+  }
+  return s.redsRemaining*8+27;
+}
+
+function newGameState(p1,p2,reds,first,totalFrames){
+  return {
+    players:[p1,p2], scores:[0,0], breaks:[0,0],
+    cur:first, redsRemaining:reds,
+    phase:PHASE.REDS, nextIsRed:true,
+    colourIndex:0, history:[], logs:[],
+    roomCode: currentRoomCode,
+    totalFrames: totalFrames||1,
+    frameScores:[0,0],   // frames won by each player
+    frameNumber:1,
+    initialReds: reds,
+    breakFirst: first,
+    createdAt: Date.now(), updatedAt: Date.now()
+  };
+}
+
+function startGame(){
+  const p1  = (document.getElementById('p1').value.trim()||'ALPHA').toUpperCase();
+  const p2  = (document.getElementById('p2').value.trim()||'BRAVO').toUpperCase();
+  const reds= parseInt(document.getElementById('redsCount').value);
+  const first=parseInt(document.getElementById('breakFirst').value);
+  const totalFrames = parseInt(document.getElementById('framesToPlay').value)||1;
+  currentRoomCode = pendingRoomCode || generateCode();
+  pendingRoomCode = null;
+  G = newGameState(p1,p2,reds,first,totalFrames);
+  logEvent('system','MATCH STARTED','','');
+  logEvent('system',`BREAK: ${G.players[first]}`,'','');
+  saveMatch(currentRoomCode, G);
+  enterGameScreen();
+  publishAll();
+}
+
+/* ─── UNDO ─── */
+function saveSnap(){
+  G.history.push(JSON.stringify({...G,history:[]}));
+  if(G.history.length>60) G.history.shift();
+}
+
+function undo(){
+  if(!G.history||!G.history.length) return flashWarn();
+  const snap = JSON.parse(G.history.pop());
+  snap.history = G.history;
+  snap.logs = G.logs;
+  G = snap;
+  logEvent('system','UNDO','','');
+  persist(); render(); publishAll();
+}
+
+/* ─── POT BALL ─── */
+function potBall(colour,pts){
+  if(G.phase===PHASE.ENDED) return;
+  saveSnap();
+  const p = G.cur;
+  G.scores[p] += pts;
+  G.breaks[p] += pts;
+
+  if(G.phase===PHASE.REDS){
+    if(colour==='red'){
+      if(!G.nextIsRed){ G.history.pop(); return warn('Pot a COLOUR next!'); }
+      G.redsRemaining--;
+      G.nextIsRed = false;
+      logEvent('pot',G.players[p],'POTS RED',`+${pts}`);
+    } else {
+      if(G.nextIsRed){ G.history.pop(); return warn('Pot a RED next!'); }
+      logEvent('pot',G.players[p],`POTS ${colour.toUpperCase()}`,`+${pts}`);
+      G.nextIsRed = true;
+      if(G.redsRemaining===0){
+        G.phase = PHASE.COLORS;
+        G.colourIndex = 0;
+        logEvent('system','ALL REDS CLEARED — COLOURS PHASE','','');
+      }
+    }
+  } else if(G.phase===PHASE.COLORS){
+    const expected = COLOR_ORDER[G.colourIndex];
+    if(colour!==expected){ G.history.pop(); return warn(`Pot ${expected.toUpperCase()} next!`); }
+    logEvent('pot',G.players[p],`POTS ${colour.toUpperCase()}`,`+${pts}`);
+    G.colourIndex++;
+    if(G.colourIndex>=COLOR_ORDER.length){ endFrame(); return; }
+  }
+
+  animateScore(p);
+  flashScoreboard();
+  persist(); render(); publishAll();
+}
+
+/* ─── MISS ─── */
+function missShot(){
+  if(G.phase===PHASE.ENDED) return;
+  saveSnap();
+  logEvent('miss',G.players[G.cur],'MISS — TURN ENDS','');
+  switchTurn();
+  persist(); render(); publishAll();
+}
+
+/* ─── FOUL ─── */
+function openFoulDialog(){
+  if(G.phase===PHASE.ENDED) return;
+  document.getElementById('customFoulPts').value='';
+  // Show/hide red foul section only during REDS phase when a colour (not red) is next
+  // Actually show it whenever we're in REDS phase
+  const redSec = document.getElementById('redFoulSection');
+  redSec.style.display = (G.phase===PHASE.REDS) ? 'block' : 'none';
+  // Reset red foul count to 1
+  G._redFoulCount = 1;
+  document.getElementById('redFoulCount').textContent = '1';
+  document.getElementById('foulOverlay').classList.remove('hidden');
+}
+function closeFoulDialog(e){
+  if(!e||e.target===document.getElementById('foulOverlay'))
+    document.getElementById('foulOverlay').classList.add('hidden');
+}
+
+let _redFoulCount = 1;
+function adjustRedFoulCount(delta){
+  const max = Math.max(1, G.redsRemaining);
+  _redFoulCount = Math.min(max, Math.max(1, (_redFoulCount||1) + delta));
+  document.getElementById('redFoulCount').textContent = _redFoulCount;
+}
+
+function applyRedFoul(){
+  document.getElementById('foulOverlay').classList.add('hidden');
+  if(G.phase===PHASE.ENDED) return;
+  saveSnap();
+  const opp = G.cur===0?1:0;
+  const penalty = 4; // red foul is minimum 4 pts
+  G.scores[opp] += penalty;
+  // Remove the reds from table
+  const toRemove = Math.min(_redFoulCount||1, G.redsRemaining);
+  G.redsRemaining -= toRemove;
+  // White potted after red — the red that went in was already counted if nextIsRed was false
+  // Reset to needing a red next (turn switches)
+  G.nextIsRed = true;
+  logEvent('foul',G.players[G.cur],`RED FOUL — ${toRemove} RED(S) REMOVED → ${G.players[opp]}`,`+${penalty}`);
+  // Check if reds are all gone now, transition to colours
+  if(G.redsRemaining<=0 && G.phase===PHASE.REDS){
+    G.redsRemaining = 0;
+    G.phase = PHASE.COLORS;
+    G.colourIndex = 0;
+    logEvent('system','ALL REDS CLEARED — COLOURS PHASE','','');
+  }
+  switchTurn();
+  animateScore(opp);
+  flashScoreboard();
+  _redFoulCount = 1;
+  persist(); render(); publishAll();
+}
+
+function foul(pts){
+  document.getElementById('foulOverlay').classList.add('hidden');
+  if(G.phase===PHASE.ENDED) return;
+  saveSnap();
+  const opp = G.cur===0?1:0;
+  const penalty = Math.max(pts,4);
+  G.scores[opp] += penalty;
+  logEvent('foul',G.players[G.cur],`FOUL → ${G.players[opp]}`,`+${penalty}`);
+  switchTurn();
+  animateScore(opp);
+  flashScoreboard();
+  persist(); render(); publishAll();
+}
+function foulCustom(){
+  const v = parseInt(document.getElementById('customFoulPts').value);
+  if(isNaN(v)||v<4||v>99){ flashInput('customFoulPts'); return; }
+  foul(v);
+}
+function flashInput(id){
+  const el=document.getElementById(id);
+  el.style.borderColor='#e74c3c';
+  setTimeout(()=>{ el.style.borderColor=''; },600);
+}
+
+/* ─── TURN ─── */
+function switchTurn(){
+  G.cur = G.cur===0?1:0;
+  G.breaks[G.cur]=0;
+  if(G.phase===PHASE.REDS) G.nextIsRed=true;
+}
+
+/* ─── FRAME END ─── */
+function endFrame(){
+  G.phase = PHASE.ENDED;
+  // Determine frame winner
+  const frameWinner = G.scores[0]>G.scores[1]?0:G.scores[1]>G.scores[0]?1:-1;
+  if(!G.frameScores) G.frameScores=[0,0];
+  if(frameWinner>=0) G.frameScores[frameWinner]++;
+
+  const totalFrames = G.totalFrames||1;
+  const framesNeeded = Math.ceil(totalFrames/2);
+  const matchWon = G.frameScores[0]>=framesNeeded || G.frameScores[1]>=framesNeeded;
+  const matchWinner = G.frameScores[0]>=framesNeeded?0:G.frameScores[1]>=framesNeeded?1:-1;
+  const allFramesDone = (G.frameScores[0]+G.frameScores[1])>=totalFrames;
+
+  logEvent('system', frameWinner>=0?`FRAME ${G.frameNumber||1} → ${G.players[frameWinner]}`:'FRAME DRAW','','');
+  if(matchWon || allFramesDone){
+    logEvent('system', matchWinner>=0?`MATCH WON BY ${G.players[matchWinner]}`:'MATCH DRAW · ALL FRAMES PLAYED','','');
+  }
+
+  persist(); render(); publishAll();
+  setTimeout(()=>{
+    launchConfetti();
+    const frameNumLabel = `FRAME ${G.frameNumber||1} OF ${totalFrames}`;
+    if(matchWon || allFramesDone){
+      // Match over
+      document.getElementById('modalLabel').textContent = '🏆 MATCH COMPLETE 🏆';
+      document.getElementById('modalWinner').textContent = matchWinner>=0?G.players[matchWinner]+' WINS MATCH':'MATCH DRAW';
+      document.getElementById('modalScore').textContent = `${G.scores[0]}  —  ${G.scores[1]}`;
+      document.getElementById('modalFrameScore').textContent = `FRAMES: ${G.frameScores[0]} — ${G.frameScores[1]}`;
+      document.getElementById('modalFrameScore').style.display='block';
+      document.getElementById('nextFrameBtn').style.display='none';
+    } else {
+      // Frame over, match continues
+      document.getElementById('modalLabel').textContent = `// ${frameNumLabel} COMPLETE //`;
+      document.getElementById('modalWinner').textContent = frameWinner>=0?G.players[frameWinner]+' WINS FRAME':'FRAME DRAW';
+      document.getElementById('modalScore').textContent = `${G.scores[0]}  —  ${G.scores[1]}`;
+      document.getElementById('modalFrameScore').textContent = `FRAMES: ${G.frameScores[0]} — ${G.frameScores[1]}  ·  NEED ${framesNeeded} TO WIN`;
+      document.getElementById('modalFrameScore').style.display='block';
+      document.getElementById('nextFrameBtn').style.display='block';
+    }
+    document.getElementById('winnerModal').classList.remove('hidden');
+  }, 600);
+}
+
+/* ─── START NEXT FRAME ─── */
+function startNextFrame(){
+  closeModal();
+  const prevFrameNumber = G.frameNumber||1;
+  const nextBreak = (G.breakFirst + prevFrameNumber) % 2; // alternate breaks
+  const newState = {
+    players: G.players,
+    scores:[0,0], breaks:[0,0],
+    cur: nextBreak,
+    redsRemaining: G.initialReds||15,
+    phase: PHASE.REDS, nextIsRed:true,
+    colourIndex:0, history:[], logs: G.logs||[],
+    roomCode: currentRoomCode,
+    totalFrames: G.totalFrames||1,
+    frameScores: G.frameScores||[0,0],
+    frameNumber: prevFrameNumber+1,
+    initialReds: G.initialReds||15,
+    breakFirst: G.breakFirst||0,
+    createdAt: G.createdAt||Date.now(), updatedAt: Date.now()
+  };
+  G = newState;
+  logEvent('system',`FRAME ${G.frameNumber} STARTED · BREAK: ${G.players[nextBreak]}`,'','');
+  persist(); render(); publishAll();
+  toast(`FRAME ${G.frameNumber} — ${G.players[nextBreak]} BREAKS`);
+}
+
+/* ─── PERSIST ─── */
+function persist(){
+  // updatedAt is stamped by publishAll() so remote poll can detect the write
+  if(currentRoomCode){
+    saveMatch(currentRoomCode, G);
+    renderLobby();
+  }
+}
+
+/* ─── BALL AVAILABILITY ─── */
+function updateBalls(){
+  const all=['red','yellow','green','brown','blue','pink','black'];
+  all.forEach(b=>document.getElementById('btn-'+b).classList.remove('disabled'));
+  if(G.phase===PHASE.REDS){
+    if(G.nextIsRed){
+      ['yellow','green','brown','blue','pink','black'].forEach(b=>
+        document.getElementById('btn-'+b).classList.add('disabled'));
+    } else {
+      document.getElementById('btn-red').classList.add('disabled');
+    }
+  } else if(G.phase===PHASE.COLORS){
+    all.forEach(b=>{
+      if(b!==COLOR_ORDER[G.colourIndex])
+        document.getElementById('btn-'+b).classList.add('disabled');
+    });
+  } else {
+    all.forEach(b=>document.getElementById('btn-'+b).classList.add('disabled'));
+  }
+}
+
+/* ─── LOG ─── */
+function logEvent(type,who,action,pts){
+  const ts=new Date().toTimeString().slice(0,8);
+  if(!G.logs) G.logs=[];
+  G.logs.unshift({type,who,action,pts,ts,id:logSeq++});
+  if(G.logs.length>80) G.logs.pop();
+}
+
+/* ─── RENDER ─── */
+function render(){
+  if(!G||!G.players) return;
+  document.getElementById('pscore0').textContent = G.scores[0];
+  document.getElementById('pscore1').textContent = G.scores[1];
+  document.getElementById('pname0').textContent  = G.players[0];
+  document.getElementById('pname1').textContent  = G.players[1];
+
+  const b0=document.getElementById('pbreak0');
+  const b1=document.getElementById('pbreak1');
+  b0.innerHTML=`BRK <span>${G.breaks[0]||'—'}</span>`;
+  b1.innerHTML=`BRK <span>${G.breaks[1]||'—'}</span>`;
+
+  document.getElementById('playerCell0').classList.toggle('active',G.cur===0);
+  document.getElementById('playerCell1').classList.toggle('active',G.cur===1);
+
+  const dot=document.getElementById('turnDot');
+  dot.className='turn-dot '+(G.cur===0?'left':'right');
+
+  const nextLabel = G.phase===PHASE.REDS
+    ?(G.nextIsRed?'RED':'COLOUR')
+    :G.phase===PHASE.COLORS
+      ?(COLOR_ORDER[G.colourIndex]||'—').toUpperCase()
+      :'ENDED';
+
+  document.getElementById('nextTarget').textContent  = nextLabel;
+  document.getElementById('redsOnTable').textContent = G.redsRemaining;
+  document.getElementById('ptsAvail').textContent    = calcPointsLeft(G);
+  document.getElementById('gamePhase').textContent   = G.phase;
+
+  // Frame score display
+  const fs = G.frameScores||[0,0];
+  const fn = G.frameNumber||1;
+  const tf = G.totalFrames||1;
+  const fsEl = document.getElementById('frameScoreMid');
+  const fsLbl = document.getElementById('framesMidLabel');
+  if(fsEl){
+    fsEl.textContent = `${fs[0]} - ${fs[1]}`;
+    if(fsLbl) fsLbl.textContent = `F${fn}/${tf}`;
+  }
+
+  updateBalls();
+
+  const feed=document.getElementById('logFeed');
+  if(!G.logs) G.logs=[];
+  feed.innerHTML=G.logs.map(e=>`
+    <div class="log-entry ${e.type}">
+      <span class="log-ts">${e.ts}</span>
+      <span class="log-text">${e.who}${e.action?' · '+e.action:''}</span>
+      <span class="log-pts">${e.pts||''}</span>
+    </div>
+  `).join('');
+}
+
+/* ─── ANIMATIONS ─── */
+function animateScore(player){
+  const el=document.getElementById('pscore'+player);
+  el.classList.remove('score-bump');
+  void el.offsetWidth; // reflow
+  el.classList.add('score-bump');
+  el.addEventListener('animationend',()=>el.classList.remove('score-bump'),{once:true});
+}
+
+function flashScoreboard(){
+  const sb=document.getElementById('scoreboard');
+  sb.classList.remove('flash-score');
+  void sb.offsetWidth;
+  sb.classList.add('flash-score');
+  sb.addEventListener('animationend',()=>sb.classList.remove('flash-score'),{once:true});
+}
+
+/* ─── CONFETTI ─── */
+function launchConfetti(){
+  const canvas=document.getElementById('confettiCanvas');
+  const ctx=canvas.getContext('2d');
+  canvas.width=window.innerWidth;
+  canvas.height=window.innerHeight;
+  const pieces=[];
+  const colors=['#4cff8a','#f1c40f','#e74c3c','#3498db','#e91e8c','#fff'];
+  for(let i=0;i<120;i++){
+    pieces.push({
+      x:Math.random()*canvas.width, y:-10,
+      vx:(Math.random()-0.5)*4, vy:Math.random()*4+2,
+      r:Math.random()*6+3, c:colors[Math.floor(Math.random()*colors.length)],
+      rot:Math.random()*360, rotV:(Math.random()-0.5)*8,
+      life:1
+    });
+  }
+  let frame=0;
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    pieces.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy; p.rot+=p.rotV; p.vy+=0.05;
+      p.life-=0.006;
+      ctx.save();
+      ctx.globalAlpha=Math.max(0,p.life);
+      ctx.translate(p.x,p.y);
+      ctx.rotate(p.rot*Math.PI/180);
+      ctx.fillStyle=p.c;
+      ctx.fillRect(-p.r,-p.r/2,p.r*2,p.r);
+      ctx.restore();
+    });
+    frame++;
+    if(frame<200) requestAnimationFrame(draw);
+    else ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+  draw();
+}
+
+/* ─── MODAL ─── */
+function closeModal(){
+  document.getElementById('winnerModal').classList.add('hidden');
+}
+
+function confirmRestart(){
+  if(confirm('Restart this match?')) restartToLobby();
+}
+
+function restartToLobby(){
+  closeModal();
+  disconnectAbly();
+  goLobby();
+}
+
+/* ─── WARN / TOAST ─── */
+function warn(msg){
+  logEvent('system','⚠ ILLEGAL',msg,'');
+  flashWarn();
+  render();
+}
+
+function flashWarn(){
+  document.body.style.animation='flashWarn .4s';
+  setTimeout(()=>{ document.body.style.animation=''; },400);
+}
+
+let toastTimer=null;
+function toast(msg, type=''){
+  if(toastTimer){ clearTimeout(toastTimer); document.querySelectorAll('.toast').forEach(t=>t.remove()); }
+  const t=document.createElement('div');
+  t.className='toast'+(type?' '+type:'');
+  t.textContent=msg;
+  document.body.appendChild(t);
+  toastTimer=setTimeout(()=>t.remove(), 2200);
+}
+
+/* ══════════════════════════════════════════════
+   MATCH ANALYTICS
+   ══════════════════════════════════════════════ */
+function computeAnalytics(g){
+  if(!g||!g.logs) return null;
+  const logs = g.logs;
+  const p0 = g.players[0]||'P1';
+  const p1 = g.players[1]||'P2';
+
+  // Counts per player
+  const stats = [
+    { pots:0, fouls:0, misses:0, ballCounts:{red:0,yellow:0,green:0,brown:0,blue:0,pink:0,black:0} },
+    { pots:0, fouls:0, misses:0, ballCounts:{red:0,yellow:0,green:0,brown:0,blue:0,pink:0,black:0} }
+  ];
+
+  logs.forEach(e=>{
+    const pi = g.players.indexOf(e.who);
+    if(pi<0) return;
+    if(e.type==='pot'){
+      stats[pi].pots++;
+      const ball = e.action.replace('POTS ','').toLowerCase();
+      if(stats[pi].ballCounts[ball]!==undefined) stats[pi].ballCounts[ball]++;
+    } else if(e.type==='foul'){
+      // foul logged against the fouling player
+      stats[pi].fouls++;
+    } else if(e.type==='miss'){
+      stats[pi].misses++;
+    }
+  });
+
+  const totals = [0,1].map(i=>{
+    const s=stats[i];
+    return s.pots + s.fouls + s.misses;
+  });
+
+  return { players:[p0,p1], scores:g.scores||[0,0], stats, totals };
+}
+
+function openAnalytics(){
+  const ov = document.getElementById('analyticsOverlay');
+  ov.classList.remove('hidden');
+  renderAnalytics();
+}
+function closeAnalytics(e){
+  if(!e||e.target===document.getElementById('analyticsOverlay'))
+    document.getElementById('analyticsOverlay').classList.add('hidden');
+}
+function renderAnalytics(){
+  if(!G||!G.players) return;
+  const a = computeAnalytics(G);
+  if(!a) return;
+
+  document.getElementById('analyticsSubtitle').textContent =
+    G.phase==='ENDED' ? '// POST-MATCH STATISTICS //' : '// LIVE STATISTICS //';
+
+  // Score bar
+  document.getElementById('anName0').textContent = a.players[0];
+  document.getElementById('anName1').textContent = a.players[1];
+  document.getElementById('anScore0').textContent = a.scores[0];
+  document.getElementById('anScore1').textContent = a.scores[1];
+  const total = (a.scores[0]||0)+(a.scores[1]||0)||1;
+  document.getElementById('anFill0').style.width = ((a.scores[0]/total)*100)+'%';
+  document.getElementById('anFill1').style.width = ((a.scores[1]/total)*100)+'%';
+
+  // Stats grid
+  const maxPots  = Math.max(1,a.stats[0].pots, a.stats[1].pots);
+  const maxFouls = Math.max(1,a.stats[0].fouls,a.stats[1].fouls);
+  const maxMiss  = Math.max(1,a.stats[0].misses,a.stats[1].misses);
+
+  function potPct(i){
+    const t = a.totals[i]; if(!t) return '0%';
+    return Math.round((a.stats[i].pots/t)*100)+'%';
+  }
+  function foulPct(i){
+    const t = a.totals[i]; if(!t) return '0%';
+    return Math.round((a.stats[i].fouls/t)*100)+'%';
+  }
+  function missPct(i){
+    const t = a.totals[i]; if(!t) return '0%';
+    return Math.round((a.stats[i].misses/t)*100)+'%';
+  }
+
+  function statBlock(label, vals, maxVal, cls, pcts){
+    return `
+      <div class="an-stat">
+        <div class="an-stat-lbl">${label}</div>
+        <div class="an-stat-bars">
+          ${[0,1].map(i=>`
+            <div class="an-stat-row">
+              <div class="an-stat-row-name">${a.players[i]}</div>
+              <div class="an-bar-track">
+                <div class="an-bar-fill p${i}" style="width:${maxVal?Math.round((vals[i]/maxVal)*100):0}%"></div>
+              </div>
+              <div class="an-stat-row-val">${pcts?pcts[i]:vals[i]}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  document.getElementById('anGrid').innerHTML =
+    statBlock('POTS', [a.stats[0].pots,a.stats[1].pots], maxPots, 'pot')
+  + statBlock('POT %', [a.stats[0].pots,a.stats[1].pots], maxPots, 'pot', [potPct(0),potPct(1)])
+  + statBlock('FOULS', [a.stats[0].fouls,a.stats[1].fouls], maxFouls, 'foul')
+  + statBlock('FOUL %', [a.stats[0].fouls,a.stats[1].fouls], maxFouls, 'foul', [foulPct(0),foulPct(1)])
+  + statBlock('MISSES', [a.stats[0].misses,a.stats[1].misses], maxMiss, 'miss')
+  + statBlock('MISS %', [a.stats[0].misses,a.stats[1].misses], maxMiss, 'miss', [missPct(0),missPct(1)]);
+
+  // Ball breakdown
+  const ballStyles = {
+    red:   'radial-gradient(circle at 38% 32%,#e74c3c,#c0392b 50%,#7b0000)',
+    yellow:'radial-gradient(circle at 38% 32%,#f9e34a,#f1c40f 50%,#8a6d00)',
+    green: 'radial-gradient(circle at 38% 32%,#52d68a,#27ae60 50%,#145a32)',
+    brown: 'radial-gradient(circle at 38% 32%,#c0714a,#8B4513 50%,#3d1a05)',
+    blue:  'radial-gradient(circle at 38% 32%,#5dade2,#2980b9 50%,#154360)',
+    pink:  'radial-gradient(circle at 38% 32%,#f48fb1,#e91e8c 50%,#880040)',
+    black: 'radial-gradient(circle at 38% 32%,#4a4a4a,#222 50%,#000)',
+  };
+  const ballPts = {red:1,yellow:2,green:3,brown:4,blue:5,pink:6,black:7};
+  const ballAbbr={red:'RED',yellow:'YLW',green:'GRN',brown:'BRN',blue:'BLU',pink:'PNK',black:'BLK'};
+  const ballTotal = Object.fromEntries(
+    Object.keys(ballStyles).map(b=>[b,(a.stats[0].ballCounts[b]||0)+(a.stats[1].ballCounts[b]||0)])
+  );
+  document.getElementById('anBalls').innerHTML = Object.keys(ballStyles).map(b=>`
+    <div class="an-ball">
+      <div class="an-ball-dot" style="background:${ballStyles[b]}">${ballPts[b]}</div>
+      <div class="an-ball-lbl">${ballAbbr[b]}</div>
+      <div class="an-ball-count">${ballTotal[b]}</div>
+    </div>
+  `).join('');
+}
+
+/* ══════════════════════════════════════════════
+   INIT
+   ══════════════════════════════════════════════ */
+(function init(){
+  // Try to restore last active match on reload
+  const lastCode = sessionStorage.getItem('snk_last_room');
+  if(lastCode){
+    const all = loadMatches();
+    if(all[lastCode] && all[lastCode].phase !== PHASE.ENDED){
+      // Auto-rejoin
+      currentRoomCode = lastCode;
+      G = {...all[lastCode], history:[]};
+      logSeq = (G.logs && G.logs.length) || 0;
+      enterGameScreen();
+  setSyncBar(false, 'FETCHING LATEST STATE…');
+      toast('SESSION RESTORED · ' + lastCode);
+      return;
+    }
+  }
+  showScreen('lobbyScreen');
+  renderLobby();
+})();
+
+// Track current room in sessionStorage so page reload restores it
+const _origEnterGame = enterGameScreen;
+window.enterGameScreen = function(){
+  if(currentRoomCode) sessionStorage.setItem('snk_last_room', currentRoomCode);
+  _origEnterGame();
+};
+
+// Override enterGameScreen to track session
+function enterGameScreen(){
+  if(currentRoomCode) sessionStorage.setItem('snk_last_room', currentRoomCode);
+  showScreen('gameScreen');
+  connectAbly(currentRoomCode);
+  render();
+}
+
+// Clear session on explicit lobby navigation
+const _origGoLobby = goLobby;
+window.goLobby = function(){
+  sessionStorage.removeItem('snk_last_room');
+  disconnectAbly();
+  currentRoomCode = null;
+  G = {};
+  showScreen('lobbyScreen');
+  renderLobby();
+};
+</script>
+</body>
+</html>
