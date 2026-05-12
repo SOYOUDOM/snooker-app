@@ -1200,22 +1200,60 @@ function goSetup(){
   showScreen('setupScreen');
 }
 
-function copyRoomCode(){
+async function copyRoomCode() {
   const code = currentRoomCode || pendingRoomCode;
-  if(!code) return;
+  if (!code) return;
+
   const url = window.location.origin + '/' + code;
 
-  if(navigator.share){
-    navigator.share({
-      title: 'Snooker Match · ' + code,
-      text: '🎱 Join my snooker match live!',
-      url: url
-    }).catch(()=>{}); // user dismissed — silent
+  // Stylish share text
+  const shareTitle = `🎱 SNOOKER LIVE · ${code}`;
+  const shareText = `
+╔════════════════════╗
+      🎱 SNOOKER LIVE
+╚════════════════════╝
+
+📡 MATCH CODE : ${code}
+
+Join the live snooker scoreboard now.
+
+⚡ Real-time score sync
+🎯 Professional scoreboard
+📱 Mobile friendly
+
+${url}
+  `.trim();
+
+  // Native mobile share
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: shareTitle,
+        text: shareText,
+        url
+      });
+
+      toast('MATCH SHARED ✓');
+
+    } catch (e) {
+      // user cancelled
+    }
+
   } else {
-    // Fallback for desktop browsers that don't support share
-    navigator.clipboard.writeText(url)
-      .then(()=>toast('LINK COPIED: '+url))
-      .catch(()=>toast('SHARE: '+url));
+
+    // Desktop fallback
+    try {
+      await navigator.clipboard.writeText(
+`${shareTitle}
+
+${shareText}`
+      );
+
+      toast('LINK COPIED ✓');
+
+    } catch (e) {
+      toast('COPY FAILED', 'err');
+    }
   }
 }
 
