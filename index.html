@@ -5,6 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="mobile-web-app-capable" content="yes"/>
+<!-- Open Graph — makes Telegram/WhatsApp/iMessage show a rich preview card -->
+<meta property="og:type"        content="website" />
+<meta property="og:site_name"   content="Snooker Live" />
+<meta property="og:title"       content="🎱 Live Snooker Match" />
+<meta property="og:description" content="Watch and track a live snooker match in real time." />
+<meta property="og:image"       content="https://snooker-app-tau.vercel.app/public/logo.png" />
+<meta property="og:url"         content="https://snooker-app-tau.vercel.app/" />
+
+<!-- Twitter/X card -->
+<meta name="twitter:card"        content="summary" />
+<meta name="twitter:title"       content="🎱 Live Snooker Match" />
+<meta name="twitter:description" content="Watch and track a live snooker match in real time." />
+<meta name="twitter:image"       content="https://snooker-app-tau.vercel.app//public/logo.png" />
 <title>SNOOKER SCOREBOARD</title>
 <link rel="icon" type="image/x-icon" href="public/favicon.ico"/>
 <link rel="shortcut icon" href="/favicon.ico"/>
@@ -1205,57 +1218,35 @@ async function copyRoomCode() {
   if (!code) return;
 
   const url = window.location.origin + '/' + code;
-
-  // Player names
   const p1 = (G.players && G.players[0]) || 'PLAYER 1';
   const p2 = (G.players && G.players[1]) || 'PLAYER 2';
+  const s0 = (G.scores && G.scores[0]) ?? 0;
+  const s1 = (G.scores && G.scores[1]) ?? 0;
+  const reds = G.redsRemaining ?? 15;
+  const phase = G.phase === 'COLOURS' ? '🎨 Colours Phase' : G.phase === 'ENDED' ? '🏁 Match Over' : `🔴 ${reds} Reds Left`;
 
-  const shareTitle = `🎱 ${p1} vs ${p2}`;
+  const shareText = [
+    '🎱 SNOOKER LIVE MATCH',
+    '',
+    `${p1}  ${s0} — ${s1}  ${p2}`,
+    '',
+    `📍 ${phase}`,
+    `🔑 Room · ${code}`,
+    '',
+    '👇 Tap to watch live',
+    url,
+  ].join('\n');
 
-  const shareText = `
-╔════════════════════╗
-      🎱 SNOOKER LIVE
-╚════════════════════╝
-
-👤 ${p1} VS 👤 ${p2}
-
-MATCH CODE : ${code}
-
-JOIN NOW:
-  `.trim();
-
-  // Mobile native share
   if (navigator.share) {
-
     try {
-      await navigator.share({
-        title: shareTitle,
-        text: shareText,
-        url
-      });
-
-      toast('MATCH SHARED ✓');
-
-    } catch (e) {
-      // user cancelled
-    }
-
+      await navigator.share({ title: `${p1} vs ${p2} · Live Snooker`, text: shareText, url });
+      toast('SHARED ✓');
+    } catch (e) { /* cancelled */ }
   } else {
-
-    // Desktop fallback
     try {
-
-      await navigator.clipboard.writeText(
-`${shareTitle}
-
-${shareText}`
-      );
-
-      toast('LINK COPIED ✓');
-
-    } catch (e) {
-      toast('COPY FAILED', 'err');
-    }
+      await navigator.clipboard.writeText(shareText);
+      toast('COPIED ✓');
+    } catch (e) { toast('COPY FAILED', 'err'); }
   }
 }
 
