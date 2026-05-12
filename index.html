@@ -1206,26 +1206,27 @@ async function copyRoomCode() {
 
   const url = window.location.origin + '/' + code;
 
-  // Stylish share text
-  const shareTitle = `🎱 SNOOKER LIVE · ${code}`;
+  // Player names
+  const p1 = (G.players && G.players[0]) || 'PLAYER 1';
+  const p2 = (G.players && G.players[1]) || 'PLAYER 2';
+
+  const shareTitle = `🎱 ${p1} vs ${p2}`;
+
   const shareText = `
 ╔════════════════════╗
       🎱 SNOOKER LIVE
 ╚════════════════════╝
 
-📡 MATCH CODE : ${code}
+👤 ${p1} VS 👤 ${p2}
 
-Join the live snooker scoreboard now.
+MATCH CODE : ${code}
 
-⚡ Real-time score sync
-🎯 Professional scoreboard
-📱 Mobile friendly
-
-${url}
+JOIN NOW:
   `.trim();
 
-  // Native mobile share
+  // Mobile native share
   if (navigator.share) {
+
     try {
       await navigator.share({
         title: shareTitle,
@@ -1243,6 +1244,7 @@ ${url}
 
     // Desktop fallback
     try {
+
       await navigator.clipboard.writeText(
 `${shareTitle}
 
