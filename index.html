@@ -1285,6 +1285,38 @@ function renderLobby(){
   }).join('');
 }
 
+function speakScore(){
+  if(!window.speechSynthesis) return;
+  const p0 = (G.players && G.players[0]) || 'Player 1';
+  const p1 = (G.players && G.players[1]) || 'Player 2';
+  const s0 = G.scores[0] || 0;
+  const s1 = G.scores[1] || 0;
+
+  const msg = new SpeechSynthesisUtterance(`${p0} ${s0} — ${p1} ${s1}`);
+  msg.rate  = 0.4;
+  msg.pitch = 1.4;
+  msg.lang  = 'en-GB'; // British accent feels right for snooker 🎱
+
+  // Pick a preferred voice — falls back gracefully if not found
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = [
+    'Daniel',           // iOS/macOS British male
+    'Arthur',           // macOS British male
+    'Google UK English Male',
+    'Google UK English Female',
+    'Microsoft George', // Windows British male
+    'Microsoft Hazel',  // Windows British female
+  ];
+  const voice = preferred.reduce((found, name) =>
+    found || voices.find(v => v.name.includes(name))
+  , null);
+
+  if(voice) msg.voice = voice;
+
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(msg);
+}
+
 /* ══════════════════════════════════════════════
    JOIN / ENTER
    ══════════════════════════════════════════════ */
@@ -1475,6 +1507,7 @@ function potBall(colour, pts){
   updateBalls();
 
   animateScore(p); flashScoreboard();
+  speakScore();
   persist(); render(); publishAll();
 }
 
@@ -1530,6 +1563,7 @@ function foul(pts){
   switchTurn();
   updateBalls(); // immediate update
   animateScore(opp); flashScoreboard();
+  speakScore();
   persist(); render(); publishAll();
 }
 
@@ -1561,6 +1595,7 @@ function applyRedFoul(){
   switchTurn();
   updateBalls(); // immediate update
   animateScore(opp); flashScoreboard();
+  speakScore();
   persist(); render(); publishAll();
 }
 
@@ -1603,7 +1638,7 @@ function endFrame(){
   if(frameWinner>=0) G.frameWins[frameWinner]++;
 
   logEvent('system',`FRAME ${G.currentFrameNum||1} COMPLETE — ${frameWinner>=0?G.players[frameWinner]+' WINS':'DRAW'}`,'','');
-
+  speakScore();
   persist(); render(); renderFrameBanner(); publishAll();
 
   const toWin = Math.ceil((G.totalFrames||1)/2);
