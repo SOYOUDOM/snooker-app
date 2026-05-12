@@ -814,7 +814,7 @@ select option{ background:#111; }
         <button class="act-btn foul-btn" onclick="openFoulDialog()">
           <span class="act-icon">⚠</span><span>FOUL</span>
         </button>
-        <button class="act-btn undo-btn" onclick="undo()">
+          <button class="act-btn undo-btn" onclick="undo()">
           <span class="act-icon">↩</span><span>UNDO</span>
         </button>
       </div>
@@ -1006,7 +1006,6 @@ const DEFAULT_GIFS = [
   'https://imgs.search.brave.com/naYjZo32XPi4lsPW96Zqxv5zi9uVw-wXZvggWYrOFZA/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9tZWRp/YS50ZW5vci5jb20v/M1B5NVNZdHZhY1VB/QUFBTS9zaG9ja2Vk/LXN1cnByaXNlZC5n/aWY.gif',
   'https://imgs.search.brave.com/5PkMUppW4POCRX3Lgf_w8TZbZR1Gx3FuLBwDR_Nbxsc/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9tZWRp/YS50ZW5vci5jb20v/MzZwYWJObnFfczBB/QUFBTS9jb25mdXNl/ZC1jb25mdXNlZC1m/YWNlLmdpZg.gif',
   'https://imgs.search.brave.com/Ab2sD8U2Pk-NbpSzJlIshRDW3rnEB-1aw8_wD8ajWzc/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9tZWRp/YS50ZW5vci5jb20v/c1JVWVkwSW5vV3NB/QUFBTS9jYXQteWV3/b28uZ2lm.gif',
-
 ];
 
 let G = {};
@@ -1014,7 +1013,7 @@ let currentRoomCode = null;
 let logSeq = 0;
 let firebaseListener = null;
 let pendingRoomCode = null;
-let selectedFrames = 1;   // total frames in the match
+let selectedFrames = 1;
 
 /* ══════════════════════════════════════════════
    LOCAL STORAGE
@@ -1104,10 +1103,14 @@ function firebaseListen(code){
       const remote = msg.data;
       if(!remote||!remote.scores||!remote.players) return;
       const remoteTs = remote.updatedAt||0;
+      // FIX: don't overwrite G if this is just an echo of our own write
+      // (same timestamp = we wrote it, skip to avoid blowing away in-memory history)
       if(remoteTs>0 && remoteTs===G.updatedAt && !G._pendingJoin) return;
       const prevScores = [...(G.scores||[0,0])];
       const wasPending = !!(G._pendingJoin);
-      G = { ...remote, history: G.history||[], _pendingJoin:false };
+      // FIX: preserve the in-memory history array — never let Firebase wipe it
+      const savedHistory = G.history||[];
+      G = { ...remote, history: savedHistory, _pendingJoin:false };
       logSeq = (G.logs&&G.logs.length)||0;
       setSyncBar(true,'LIVE · CODE '+code);
       if(wasPending) toast('MATCH SYNCED ✓');
@@ -1125,6 +1128,7 @@ function firebaseListen(code){
 }
 
 function firebaseStopListen(){ if(firebaseListener){ firebaseListener.close(); firebaseListener=null; } }
+
 async function publishAll(){
   if(!currentRoomCode) return;
   G.updatedAt = Date.now();
@@ -1170,19 +1174,16 @@ function updateHeader(screen){
   const right=document.getElementById('hdrRight');
   if(screen==='gameScreen'){
     right.innerHTML=`
-      <div class="room-pill" onclick="copyRoomCode()" title="Copy code">
-        <div class="room-pill-dot"></div>
-        <span class="room-pill-code">${currentRoomCode||''}</span>
-      </div>
       <div class="icon-btn" onclick="openConclusion()" title="Frame Summary">≡</div>
       <div class="icon-btn" onclick="openAnalytics()" title="Analytics">!</div>
-      <div class="icon-btn" onclick="undo()" title="Undo">↩</div>
-      <div class="icon-btn" onclick="confirmRestart()" title="Restart">⟳</div>
+      <div class="icon-btn" onclick="copyRoomCode()" title="Share">↪</div>
+      <div class="icon-btn" onclick="confirmRestart()" title="Restart">✚</div>
     `;
   } else { right.innerHTML=''; }
 }
 
 function goLobby(){
+  setUrl(null);                      // ← ADD THIS
   disconnectAbly();
   currentRoomCode=null; G={};
   sessionStorage.removeItem('snk_last_room');
@@ -1192,7 +1193,6 @@ function goLobby(){
 function goSetup(){
   pendingRoomCode=generateCode();
   document.getElementById('pendingRoomCode').textContent=pendingRoomCode;
-  // Reset frame selection to 1
   selectedFrames=1;
   document.querySelectorAll('.frame-opt').forEach(el=>{
     el.classList.toggle('selected', parseInt(el.dataset.frames)===1);
@@ -1201,9 +1201,22 @@ function goSetup(){
 }
 
 function copyRoomCode(){
-  const code=currentRoomCode||pendingRoomCode;
+  const code = currentRoomCode || pendingRoomCode;
   if(!code) return;
-  navigator.clipboard.writeText(code).then(()=>toast('CODE COPIED: '+code)).catch(()=>toast('CODE: '+code));
+  const url = window.location.origin + '/' + code;
+
+  if(navigator.share){
+    navigator.share({
+      title: 'Snooker Match · ' + code,
+      text: '🎱 Join my snooker match live!',
+      url: url
+    }).catch(()=>{}); // user dismissed — silent
+  } else {
+    // Fallback for desktop browsers that don't support share
+    navigator.clipboard.writeText(url)
+      .then(()=>toast('LINK COPIED: '+url))
+      .catch(()=>toast('SHARE: '+url));
+  }
 }
 
 /* ══════════════════════════════════════════════
@@ -1272,6 +1285,7 @@ function joinByCode(){
 }
 
 function enterGameScreen(){
+  setUrl(currentRoomCode);           // ← ADD THIS
   if(currentRoomCode) sessionStorage.setItem('snk_last_room', currentRoomCode);
   showScreen('gameScreen');
   connectAbly(currentRoomCode);
@@ -1300,12 +1314,27 @@ function confirmDelete(){
 /* ══════════════════════════════════════════════
    GAME LOGIC
    ══════════════════════════════════════════════ */
+
+/* ─── POINTS LEFT — FIXED ───
+   ENDED  → always 0
+   COLORS → sum of remaining colour values
+   REDS   → if nextIsRed: reds*8+27
+             if colour due: 7 + reds*8 + 27  (the upcoming colour can be up to 7)
+*/
 function calcPointsLeft(s){
+  if(s.phase===PHASE.ENDED) return 0;
   if(s.phase===PHASE.COLORS){
     const vals={yellow:2,green:3,brown:4,blue:5,pink:6,black:7};
     return COLOR_ORDER.slice(s.colourIndex).reduce((a,c)=>a+vals[c],0);
   }
-  return s.redsRemaining*8+27;
+  // REDS phase
+  const reds = Math.max(0, s.redsRemaining||0);
+  if(s.nextIsRed){
+    return reds * 8 + 27;
+  } else {
+    // A red was just potted; a colour is next (up to 7pts), then remaining reds cycle, then colours
+    return 7 + reds * 8 + 27;
+  }
 }
 
 function newFrameState(players, reds, first, totalFrames, frameWins, frameHistory){
@@ -1337,35 +1366,61 @@ function startGame(){
   publishAll();
 }
 
-/* ─── UNDO ─── */
+/* ─── UNDO ─── FIX: clamp redsRemaining on restore; never let Firebase echo blow away history */
 function saveSnap(){
   G.history.push(JSON.stringify({...G, history:[]}));
   if(G.history.length>60) G.history.shift();
 }
+
 function undo(){
   if(!G.history||!G.history.length) return flashWarn();
   const snap=JSON.parse(G.history.pop());
-  snap.history=G.history; snap.logs=G.logs;
+  snap.history=G.history;
+  snap.logs=G.logs;
+  // Safety: redsRemaining must never be negative
+  snap.redsRemaining = Math.max(0, snap.redsRemaining||0);
   G=snap;
   logEvent('system','UNDO','','');
+  // FIX: update balls IMMEDIATELY before any async I/O so there's zero lag
+  updateBalls();
   persist(); render(); renderFrameBanner(); publishAll();
 }
 
-/* ─── POT BALL ─── */
-function potBall(colour,pts){
+/* ─── POT BALL — FIX: instant DOM update + debounce guard ─── */
+// _potLock: timestamp of last accepted pot. Reject any second tap within 300ms.
+let _potLock = 0;
+
+function potBall(colour, pts){
   if(G.phase===PHASE.ENDED) return;
+
+  // Hard debounce: ignore taps faster than 300ms to prevent double-fire
+  const now = Date.now();
+  if(now - _potLock < 300) return;
+
+  // FIX: validate against CURRENT G state BEFORE touching anything
+  // This is the authoritative check — DOM classes can lag but G never does
+  if(G.phase===PHASE.REDS){
+    if(colour==='red' && !G.nextIsRed){ return warn('Pot a COLOUR next!'); }
+    if(colour!=='red' && G.nextIsRed){ return warn('Pot a RED next!'); }
+    if(colour==='red' && G.redsRemaining<=0){ return warn('No reds left!'); }
+  } else if(G.phase===PHASE.COLORS){
+    if(colour!==COLOR_ORDER[G.colourIndex]){ return warn(`Pot ${COLOR_ORDER[G.colourIndex].toUpperCase()} next!`); }
+  }
+
+  // Accept this tap
+  _potLock = now;
+
   saveSnap();
   const p=G.cur;
-  G.scores[p]+=pts; G.breaks[p]+=pts;
+  G.scores[p]+=pts;
+  G.breaks[p]+=pts;
 
   if(G.phase===PHASE.REDS){
     if(colour==='red'){
-      if(!G.nextIsRed){ G.history.pop(); return warn('Pot a COLOUR next!'); }
-      G.redsRemaining--;
+      G.redsRemaining = Math.max(0, G.redsRemaining - 1);
       G.nextIsRed=false;
       logEvent('pot',G.players[p],'POTS RED',`+${pts}`);
     } else {
-      if(G.nextIsRed){ G.history.pop(); return warn('Pot a RED next!'); }
       logEvent('pot',G.players[p],`POTS ${colour.toUpperCase()}`,`+${pts}`);
       G.nextIsRed=true;
       if(G.redsRemaining===0){
@@ -1374,12 +1429,20 @@ function potBall(colour,pts){
       }
     }
   } else if(G.phase===PHASE.COLORS){
-    const expected=COLOR_ORDER[G.colourIndex];
-    if(colour!==expected){ G.history.pop(); return warn(`Pot ${expected.toUpperCase()} next!`); }
     logEvent('pot',G.players[p],`POTS ${colour.toUpperCase()}`,`+${pts}`);
     G.colourIndex++;
-    if(G.colourIndex>=COLOR_ORDER.length){ endFrame(); return; }
+    if(G.colourIndex>=COLOR_ORDER.length){
+      // FIX: update balls to all-disabled immediately before endFrame async work
+      updateBalls();
+      endFrame();
+      return;
+    }
   }
+
+  // FIX: update ball availability IMMEDIATELY after state mutation,
+  // before persist/publishAll which involve localStorage + async Firebase.
+  // This eliminates the visual lag where wrong balls appear enabled for ~100ms.
+  updateBalls();
 
   animateScore(p); flashScoreboard();
   persist(); render(); publishAll();
@@ -1391,24 +1454,20 @@ function missShot(){
   saveSnap();
   logEvent('miss',G.players[G.cur],'MISS — TURN ENDS','');
   switchTurn();
+  updateBalls(); // immediate update
   persist(); render(); publishAll();
 }
 
 /* ─── FOUL DIALOG ─── */
-let redFoulCountVal = 1; // how many reds to remove in a red foul
+let redFoulCountVal = 1;
 
 function openFoulDialog(){
   if(G.phase===PHASE.ENDED) return;
   document.getElementById('customFoulPts').value='';
-
-  // Reset red foul stepper
   redFoulCountVal = 1;
   document.getElementById('redFoulCount').textContent = '1';
-
-  // Show red foul section only when reds are on the table
   const showRedFoul = G.phase===PHASE.REDS && G.redsRemaining>0;
   document.getElementById('redFoulSection').className = 'red-foul-section' + (showRedFoul?' visible':'');
-
   document.getElementById('foulOverlay').classList.remove('hidden');
 }
 
@@ -1433,24 +1492,24 @@ function foul(pts){
   G.scores[opp]+=penalty;
   logEvent('foul',G.players[G.cur],`FOUL → ${G.players[opp]}`,`+${penalty}`);
 
-  // Track foul for conclusion stats
   if(!G.foulCount) G.foulCount=[0,0];
   G.foulCount[G.cur]++;
   if(!G.maxFoulPenalty) G.maxFoulPenalty=[0,0];
   if(penalty>G.maxFoulPenalty[G.cur]) G.maxFoulPenalty[G.cur]=penalty;
 
   switchTurn();
+  updateBalls(); // immediate update
   animateScore(opp); flashScoreboard();
   persist(); render(); publishAll();
 }
 
-/* Red foul — always 4pts penalty + removes N reds from table */
+/* Red foul — 4pts penalty + removes N reds */
 function applyRedFoul(){
   document.getElementById('foulOverlay').classList.add('hidden');
   if(G.phase===PHASE.ENDED) return;
   saveSnap();
   const opp=G.cur===0?1:0;
-  const penalty=4; // red foul is always minimum 4 pts
+  const penalty=4;
   const redsToRemove=Math.min(redFoulCountVal, G.redsRemaining);
 
   G.scores[opp]+=penalty;
@@ -1459,23 +1518,18 @@ function applyRedFoul(){
   logEvent('foul',G.players[G.cur],`RED FOUL (${redsToRemove} RED${redsToRemove>1?'S':''} REMOVED) → ${G.players[opp]}`,`+${penalty}`);
   logEvent('system',`${G.redsRemaining} RED${G.redsRemaining!==1?'S':''} REMAIN ON TABLE`,'','');
 
-  // Transition to colours if all reds gone and it was colour's turn
-  if(G.redsRemaining===0){
-    // If it was colour turn (nextIsRed false means colour just potted last colour-after-red, but here red is removed mid-sequence)
-    // Safe default: go to colours phase only if we're in REDS phase
-    if(G.phase===PHASE.REDS){
-      G.phase=PHASE.COLORS; G.colourIndex=0;
-      logEvent('system','ALL REDS CLEARED — COLOURS PHASE','','');
-    }
+  if(G.redsRemaining===0 && G.phase===PHASE.REDS){
+    G.phase=PHASE.COLORS; G.colourIndex=0;
+    logEvent('system','ALL REDS CLEARED — COLOURS PHASE','','');
   }
 
-  // Track foul stats
   if(!G.foulCount) G.foulCount=[0,0];
   G.foulCount[G.cur]++;
   if(!G.maxFoulPenalty) G.maxFoulPenalty=[0,0];
   if(penalty>G.maxFoulPenalty[G.cur]) G.maxFoulPenalty[G.cur]=penalty;
 
   switchTurn();
+  updateBalls(); // immediate update
   animateScore(opp); flashScoreboard();
   persist(); render(); publishAll();
 }
@@ -1491,16 +1545,16 @@ function flashInput(id){ const el=document.getElementById(id); el.style.borderCo
 function switchTurn(){
   G.cur=G.cur===0?1:0;
   G.breaks[G.cur]=0;
+  // FIX: when switching turn in REDS phase, next ball is always red
+  // (foul during colour turn still resets to red for next player)
   if(G.phase===PHASE.REDS) G.nextIsRed=true;
 }
 
 /* ─── FRAME END ─── */
 function endFrame(){
   G.phase=PHASE.ENDED;
-  // Determine frame winner
   const frameWinner = G.scores[0]>G.scores[1]?0 : G.scores[1]>G.scores[0]?1 : -1;
 
-  // Record frame result in history
   const frameRecord = {
     frame: G.currentFrameNum||1,
     scores: [...G.scores],
@@ -1515,7 +1569,6 @@ function endFrame(){
   if(!G.frameHistory) G.frameHistory=[];
   G.frameHistory.push(frameRecord);
 
-  // Update frame wins
   if(!G.frameWins) G.frameWins=[0,0];
   if(frameWinner>=0) G.frameWins[frameWinner]++;
 
@@ -1538,7 +1591,6 @@ function showWinnerModal(frameWinner, matchOver){
   const fw0=G.frameWins[0]||0;
   const fw1=G.frameWins[1]||0;
 
-  // Frame score header
   const fsBox=document.getElementById('matchFrameScoreBox');
   if(tf>1){
     fsBox.style.display='flex';
@@ -1552,7 +1604,6 @@ function showWinnerModal(frameWinner, matchOver){
     fsBox.style.display='none';
   }
 
-  // Winner info
   const label=document.getElementById('modalWinnerLabel');
   const nameEl=document.getElementById('modalWinner');
   const scoreEl=document.getElementById('modalScore');
@@ -1563,30 +1614,24 @@ function showWinnerModal(frameWinner, matchOver){
     nameEl.textContent = matchWinner>=0 ? G.players[matchWinner]+' WINS' : 'DRAW';
     scoreEl.textContent = `${G.scores[0]}  —  ${G.scores[1]}`;
 
-    // GIF logic
     const gifWrap=document.getElementById('winnerGifWrap');
     const gifImg=document.getElementById('winnerGifImg');
     if(matchWinner>=0){
       const winnerName=G.players[matchWinner].toUpperCase();
       const isOudom=winnerName.includes('OUDOM');
       gifWrap.className='winner-gif-wrap show'+(isOudom?' oudom-special':'');
-      gifImg.src = isOudom
-        ? randomGif(OUDOM_GIFS)
-        : randomGif(DEFAULT_GIFS);
+      gifImg.src = isOudom ? randomGif(OUDOM_GIFS) : randomGif(DEFAULT_GIFS);
     } else {
-      gifWrap.className='winner-gif-wrap'; // hide on draw
+      gifWrap.className='winner-gif-wrap';
     }
 
-    // Buttons — match over
     document.getElementById('nextFrameBtn').style.display='none';
     document.getElementById('dismissWinnerBtn').style.display='';
   } else {
-    // Frame done, match continues
     label.textContent=`// FRAME ${G.currentFrameNum||1} COMPLETE //`;
     nameEl.textContent = frameWinner>=0 ? G.players[frameWinner]+' WINS FRAME' : 'FRAME DRAWN';
     scoreEl.textContent = `${G.scores[0]}  —  ${G.scores[1]}`;
-    document.getElementById('winnerGifWrap').className='winner-gif-wrap'; // no gif mid-match
-
+    document.getElementById('winnerGifWrap').className='winner-gif-wrap';
     document.getElementById('nextFrameBtn').style.display='';
     document.getElementById('dismissWinnerBtn').style.display='none';
   }
@@ -1599,11 +1644,10 @@ function nextFrame(){
   closeModal();
   if(!G||!G.players) return;
   const tf=G.totalFrames||1;
-  const reds=15; // default; could store original reds count
-  // Alternate break-off: loser of last frame breaks next (standard snooker)
+  const reds=15;
   const lastFrame=G.frameHistory[G.frameHistory.length-1];
   const lastWinner=lastFrame?lastFrame.winner:-1;
-  const nextBreak = lastWinner>=0 ? (lastWinner===0?1:0) : G.cur; // loser breaks next
+  const nextBreak = lastWinner>=0 ? (lastWinner===0?1:0) : G.cur;
   const newState=newFrameState(G.players, reds, nextBreak, tf, G.frameWins, G.frameHistory);
   G=newState;
   logEvent('system',`FRAME ${G.currentFrameNum} STARTED · BREAK: ${G.players[nextBreak]}`,'','');
@@ -1622,11 +1666,9 @@ function renderFrameBanner(){
   const fw1=G.frameWins?G.frameWins[1]:0;
   const toWin=Math.ceil(tf/2);
 
-  // Pips for player 0 (left)
   const pips0=document.getElementById('framePips0');
   pips0.innerHTML=Array.from({length:toWin},(_,i)=>`<div class="frame-pip${i<fw0?' won':''}"></div>`).join('');
 
-  // Pips for player 1 (right)
   const pips1=document.getElementById('framePips1');
   pips1.innerHTML=Array.from({length:toWin},(_,i)=>`<div class="frame-pip${i<fw1?' opp':''}"></div>`).join('');
 
@@ -1639,22 +1681,49 @@ function persist(){
   if(currentRoomCode){ saveMatch(currentRoomCode, G); renderLobby(); }
 }
 
-/* ─── BALL AVAILABILITY ─── */
+/* ─── BALL AVAILABILITY — FIXED ───
+   Called immediately after every state mutation so buttons are never stale.
+   Logic is strictly derived from G (the source of truth), not DOM state.
+*/
 function updateBalls(){
   const all=['red','yellow','green','brown','blue','pink','black'];
-  all.forEach(b=>document.getElementById('btn-'+b).classList.remove('disabled'));
-  if(G.phase===PHASE.REDS){
-    if(G.nextIsRed){
-      ['yellow','green','brown','blue','pink','black'].forEach(b=>document.getElementById('btn-'+b).classList.add('disabled'));
-    } else {
-      document.getElementById('btn-red').classList.add('disabled');
-    }
-  } else if(G.phase===PHASE.COLORS){
-    all.forEach(b=>{ if(b!==COLOR_ORDER[G.colourIndex]) document.getElementById('btn-'+b).classList.add('disabled'); });
-  } else {
-    all.forEach(b=>document.getElementById('btn-'+b).classList.add('disabled'));
+
+  // First disable all
+  all.forEach(b=>{
+    document.getElementById('btn-'+b).classList.add('disabled');
+  });
+
+  if(G.phase===PHASE.ENDED){
+    return;
   }
-}
+
+  if(G.phase===PHASE.REDS){
+
+    if(G.nextIsRed){
+      if(G.redsRemaining > 0){
+        document.getElementById('btn-red').classList.remove('disabled');
+      }
+
+    } else {
+
+      ['yellow','green','brown','blue','pink','black']
+      .forEach(b=>{
+        document.getElementById('btn-'+b).classList.remove('disabled');
+      });
+
+    }
+
+  } else if(G.phase===PHASE.COLORS){
+
+    const current = COLOR_ORDER[G.colourIndex];
+
+    if(current){
+      document.getElementById('btn-'+current)
+      .classList.remove('disabled');
+    }
+
+  }
+} 
 
 /* ─── LOG ─── */
 function logEvent(type,who,action,pts){
@@ -1688,10 +1757,12 @@ function render(){
       :'ENDED';
 
   document.getElementById('nextTarget').textContent=nextLabel;
-  document.getElementById('redsOnTable').textContent=G.redsRemaining;
+  document.getElementById('redsOnTable').textContent=Math.max(0, G.redsRemaining||0);
   document.getElementById('ptsAvail').textContent=calcPointsLeft(G);
   document.getElementById('gamePhase').textContent=G.phase;
 
+  // updateBalls is already called immediately in each action handler.
+  // Calling it again here in render() ensures remote-synced state is also reflected.
   updateBalls();
 
   const feed=document.getElementById('logFeed');
@@ -1740,7 +1811,7 @@ function launchConfetti(){
 
 /* ─── MODAL ─── */
 function closeModal(){ document.getElementById('winnerModal').classList.add('hidden'); }
-function confirmRestart(){ if(confirm('Restart this match?')) restartToLobby(); }
+function confirmRestart(){ if(confirm('⚠ Are you sure you want to restart the match?')) restartToLobby(); }
 function restartToLobby(){ closeModal(); disconnectAbly(); goLobby(); }
 
 /* ─── WARN / TOAST ─── */
@@ -1772,10 +1843,8 @@ const BALL_PTS={red:1,yellow:2,green:3,brown:4,blue:5,pink:6,black:7};
 const BALL_ABBR={red:'RED',yellow:'YLW',green:'GRN',brown:'BRN',blue:'BLU',pink:'PNK',black:'BLK'};
 
 function computeMaxBreak(logs){
-  // Max consecutive points per player in one visit
   const result=[0,0];
   if(!logs||!logs.length) return result;
-  // logs are most-recent-first, reverse for chronological
   const chron=[...logs].reverse();
   let curPlayer=-1, curBreak=0;
   chron.forEach(e=>{
@@ -1823,18 +1892,13 @@ function computeBallCounts(logs){
 let conclusionActiveFrame=0;
 
 function openConclusion(){
-  // Build summary from frameHistory (completed frames) + current frame if ended
   const frames=G.frameHistory||[];
-  // If current frame is ended and not yet in frameHistory, it was just added
-  // We also want to show in-progress stats for current frame
   const tabs=document.getElementById('conclusionTabs');
   const content=document.getElementById('conclusionContent');
 
-  // Build tab list: completed frames + "current" if not ended
   const allFrames=[...frames];
   const isCurrentEnded=G.phase===PHASE.ENDED;
   if(!isCurrentEnded && G.logs && G.logs.length>0){
-    // Add live current frame
     allFrames.push({
       frame: G.currentFrameNum||1,
       scores: [...(G.scores||[0,0])],
@@ -1903,11 +1967,7 @@ function renderConclusionFrame(frames, idx){
   const totalPots=f.totalPots||[0,0];
   const ballCounts=f.ballCounts||{red:[0,0],yellow:[0,0],green:[0,0],brown:[0,0],blue:[0,0],pink:[0,0],black:[0,0]};
 
-  // Highest break across both players for highlight
   const highBreak=Math.max(maxBreak[0],maxBreak[1]);
-  const highBreakPlayer=maxBreak[0]>=maxBreak[1]?0:1;
-
-  // Accuracy: pots / (pots+misses+fouls)
   const misses=[0,1].map(i=>(f.logs||[]).filter(e=>e.type==='miss'&&e.who===(G.players||[])[i]).length);
   const accuracy=[0,1].map(i=>{
     const t=(totalPots[i]||0)+(misses[i]||0)+(foulCount[i]||0);
@@ -1916,17 +1976,13 @@ function renderConclusionFrame(frames, idx){
 
   const content=document.getElementById('conclusionContent');
   content.innerHTML=`
-    <!-- Frame winner -->
     <div class="conc-frame-winner">
       <div class="conc-fw-label">${f.live?'LIVE FRAME':'FRAME '+f.frame+' RESULT'}</div>
       <div class="conc-fw-name">${w>=0?((G.players||[])[w]||'P'+(w+1))+' WINS FRAME':f.live?'IN PROGRESS':'DRAW'}</div>
       <div class="conc-fw-score">${f.scores[0]} — ${f.scores[1]}</div>
     </div>
 
-    <!-- Stats grid -->
     <div class="conc-stats-grid">
-
-      <!-- Highest Break -->
       <div class="conc-stat-card">
         <div class="conc-stat-label">// HIGHEST BREAK</div>
         ${[0,1].map(i=>`
@@ -1937,7 +1993,6 @@ function renderConclusionFrame(frames, idx){
         `).join('')}
       </div>
 
-      <!-- Total Pots -->
       <div class="conc-stat-card">
         <div class="conc-stat-label">// TOTAL POTS</div>
         ${[0,1].map(i=>`
@@ -1948,7 +2003,6 @@ function renderConclusionFrame(frames, idx){
         `).join('')}
       </div>
 
-      <!-- Total Fouls -->
       <div class="conc-stat-card">
         <div class="conc-stat-label">// TOTAL FOULS</div>
         ${[0,1].map(i=>`
@@ -1959,7 +2013,6 @@ function renderConclusionFrame(frames, idx){
         `).join('')}
       </div>
 
-      <!-- Accuracy -->
       <div class="conc-stat-card">
         <div class="conc-stat-label">// ACCURACY %</div>
         ${[0,1].map(i=>`
@@ -1970,7 +2023,6 @@ function renderConclusionFrame(frames, idx){
         `).join('')}
       </div>
 
-      <!-- Max Foul Penalty -->
       <div class="conc-stat-card">
         <div class="conc-stat-label">// MAX FOUL PTS</div>
         ${[0,1].map(i=>`
@@ -1981,7 +2033,6 @@ function renderConclusionFrame(frames, idx){
         `).join('')}
       </div>
 
-      <!-- Misses -->
       <div class="conc-stat-card">
         <div class="conc-stat-label">// MISSES</div>
         ${[0,1].map(i=>`
@@ -1991,10 +2042,8 @@ function renderConclusionFrame(frames, idx){
           </div>
         `).join('')}
       </div>
-
     </div>
 
-    <!-- Ball breakdown -->
     <div class="conc-ball-breakdown">
       <div class="conc-stat-label">// BALL BREAKDOWN</div>
       ${Object.keys(BALL_STYLES).map(b=>{
@@ -2105,24 +2154,60 @@ function renderAnalytics(){
   const ballTotal=Object.fromEntries(Object.keys(ballStyles).map(b=>[b,(a.stats[0].ballCounts[b]||0)+(a.stats[1].ballCounts[b]||0)]));
   document.getElementById('anBalls').innerHTML=Object.keys(ballStyles).map(b=>`<div class="an-ball"><div class="an-ball-dot" style="background:${ballStyles[b]}">${ballPts[b]}</div><div class="an-ball-lbl">${ballAbbr[b]}</div><div class="an-ball-count">${ballTotal[b]}</div></div>`).join('');
 }
-
+/* ══════════════════════════════════════════════
+   URL ROUTING
+   ══════════════════════════════════════════════ */
+function setUrl(code){
+  const target = code ? '/' + code.toUpperCase() : '/';
+  if(window.location.pathname !== target)
+    history.replaceState(null,'',target);
+}
 /* ══════════════════════════════════════════════
    INIT
    ══════════════════════════════════════════════ */
 (function init(){
-  const lastCode=sessionStorage.getItem('snk_last_room');
+  // 1. Check URL path for a room code  e.g. /HAJDU
+  const pathCode = window.location.pathname.replace(/^\//, '').trim().toUpperCase();
+  if(pathCode && /^[A-Z0-9]{4,8}$/.test(pathCode)){
+    const all = loadMatches();
+    if(all[pathCode]){
+      // Known match — join directly
+      currentRoomCode = pathCode;
+      G = { ...all[pathCode], history:[], _pendingJoin:true };
+      logSeq = (G.logs && G.logs.length) || 0;
+      enterGameScreen();
+      setSyncBar(false,'FETCHING LATEST STATE…');
+      toast('JOINING '+pathCode+'…');
+      return;
+    } else {
+      // Unknown code — could be a remote-only match; attempt to join via Firebase
+      currentRoomCode = pathCode;
+      G = { players:['—','—'], scores:[0,0], breaks:[0,0], cur:0,
+            redsRemaining:15, phase:PHASE.REDS, nextIsRed:true,
+            colourIndex:0, history:[], logs:[], frameWins:[0,0],
+            totalFrames:1, frameHistory:[], _pendingJoin:true };
+      enterGameScreen();
+      setSyncBar(false,'FETCHING MATCH STATE…');
+      toast('JOINING '+pathCode+'…');
+      return;
+    }
+  }
+
+  // 2. No URL code — fall back to session restore or lobby
+  const lastCode = sessionStorage.getItem('snk_last_room');
   if(lastCode){
-    const all=loadMatches();
-    if(all[lastCode]&&all[lastCode].phase!==PHASE.ENDED){
-      currentRoomCode=lastCode;
-      G={...all[lastCode], history:[]};
-      logSeq=(G.logs&&G.logs.length)||0;
+    const all = loadMatches();
+    if(all[lastCode] && all[lastCode].phase !== PHASE.ENDED){
+      currentRoomCode = lastCode;
+      G = { ...all[lastCode], history:[] };
+      logSeq = (G.logs && G.logs.length) || 0;
       enterGameScreen();
       setSyncBar(false,'FETCHING LATEST STATE…');
       toast('SESSION RESTORED · '+lastCode);
       return;
     }
   }
+
   showScreen('lobbyScreen');
   renderLobby();
 })();
