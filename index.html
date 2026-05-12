@@ -1300,8 +1300,8 @@ function renderLobby(){
 function speakScore(input) {
   if (!window.speechSynthesis || isMuted) return;
 
-  const p0 = (G.players && G.players[0]) || 'Player 1';
-  const p1 = (G.players && G.players[1]) || 'Player 2';
+  const p0 = ((G.players && G.players[0]) || 'Player 1').includes('DOM') ? 'Utdom' : ((G.players && G.players[0]) || 'Player 1');
+  const p1 = ((G.players && G.players[1]) || 'Player 2').includes('DOM') ? 'Utdom' : ((G.players && G.players[1]) || 'Player 2');
   const s0 = G.scores[0] || 0;
   const s1 = G.scores[1] || 0;
 
@@ -1309,8 +1309,9 @@ function speakScore(input) {
     ? input
     : `${p0} ${s0} — ${p1} ${s1}`;
 
-  const msg = new SpeechSynthesisUtterance(text);
+    
 
+  const msg = new SpeechSynthesisUtterance(text);
   msg.rate = 0.4;
   msg.pitch = 1.4;
   // msg.lang = 'en-GB';
