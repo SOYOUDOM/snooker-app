@@ -1696,7 +1696,7 @@ function showWinnerModal(frameWinner, matchOver){
     const gifImg=document.getElementById('winnerGifImg');
     if(matchWinner>=0){
       const winnerName=G.players[matchWinner].toUpperCase();
-      const isOudom=winnerName.includes('OUDOM');
+      const isOudom=winnerName.includes('UDOM') || winnerName.includes('ODOM');
       gifWrap.className='winner-gif-wrap show'+(isOudom?' oudom-special':'');
       gifImg.src = isOudom ? randomGif(OUDOM_GIFS) : randomGif(DEFAULT_GIFS);
     } else {
