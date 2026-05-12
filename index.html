@@ -995,6 +995,7 @@ const FIREBASE_URL = 'https://snooker-app-cc170-default-rtdb.asia-southeast1.fir
 const PHASE = { REDS:'REDS', COLORS:'COLOURS', ENDED:'ENDED' };
 const COLOR_ORDER = ['yellow','green','brown','blue','pink','black'];
 const LS_MATCHES = 'snk_matches_v3';
+let isMuted = false;
 
 /* ─── Oudom GIF URL — replace src here ─── */
 const OUDOM_GIFS = [
@@ -1187,10 +1188,11 @@ function updateHeader(screen){
   const right=document.getElementById('hdrRight');
   if(screen==='gameScreen'){
     right.innerHTML=`
-      <div class="icon-btn" onclick="openConclusion()" title="Frame Summary">≡</div>
-      <div class="icon-btn" onclick="openAnalytics()" title="Analytics">!</div>
-      <div class="icon-btn" onclick="copyRoomCode()" title="Share">↪</div>
-      <div class="icon-btn" onclick="confirmRestart()" title="Restart">✚</div>
+    <div class="icon-btn" onclick="confirmRestart()" title="Restart">✚</div>
+    <div class="icon-btn" onclick="copyRoomCode()" title="Share">↪</div>
+    <div class="icon-btn" id="muteBtn" onclick="mute()" title="Frame Summary">${isMuted ? '🔇' : '🔊'}</div>
+    <div class="icon-btn" onclick="openConclusion()" title="Frame Summary">≡</div>
+    <div class="icon-btn" onclick="openAnalytics()" title="Analytics">!</div>
     `;
   } else { right.innerHTML=''; }
 }
@@ -1201,6 +1203,15 @@ function goLobby(){
   currentRoomCode=null; G={};
   sessionStorage.removeItem('snk_last_room');
   showScreen('lobbyScreen'); renderLobby();
+}
+
+function mute(){
+  isMuted = !isMuted;
+  const btn = document.getElementById('muteBtn');
+  if(!btn) return;
+
+  btn.textContent = isMuted ? '🔇' : '🔊';
+  btn.title = isMuted ? 'Unmute' : 'Mute';
 }
 
 function goSetup(){
@@ -1285,28 +1296,34 @@ function renderLobby(){
   }).join('');
 }
 
-function speakScore(){
-  if(!window.speechSynthesis) return;
+function speakScore(input) {
+  if (!window.speechSynthesis || isMuted) return;
+
   const p0 = (G.players && G.players[0]) || 'Player 1';
   const p1 = (G.players && G.players[1]) || 'Player 2';
   const s0 = G.scores[0] || 0;
   const s1 = G.scores[1] || 0;
 
-  const msg = new SpeechSynthesisUtterance(`${p0} ${s0} — ${p1} ${s1}`);
-  msg.rate  = 0.4;
+  const text = input != null && input !== ''
+    ? input
+    : `${p0} ${s0} — ${p1} ${s1}`;
+
+  const msg = new SpeechSynthesisUtterance(text);
+
+  msg.rate = 0.4;
   msg.pitch = 1.4;
-  msg.lang  = 'en-GB'; // British accent feels right for snooker 🎱
+  // msg.lang = 'en-GB';
+  
 
-  // Pick a preferred voice — falls back gracefully if not found
-  const voices = window.speechSynthesis.getVoices();
-  const preferred = [
-    'Google UK English Male'
-  ];
-  const voice = preferred.reduce((found, name) =>
-    found || voices.find(v => v.name.includes(name))
-  , null);
+  // const voices = window.speechSynthesis.getVoices();
+  // const preferred = ['Samantha'];
 
-  if(voice) msg.voice = voice;
+  // const voice = preferred.reduce(
+  //   (found, name) => found || voices.find(v => v.name.includes(name)),
+  //   null
+  // );
+
+  // if (voice) msg.voice = voice;
 
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(msg);
@@ -1691,6 +1708,7 @@ function showWinnerModal(frameWinner, matchOver){
     label.textContent=`// FRAME ${G.currentFrameNum||1} COMPLETE //`;
     nameEl.textContent = frameWinner>=0 ? G.players[frameWinner]+' WINS FRAME' : 'FRAME DRAWN';
     scoreEl.textContent = `${G.scores[0]}  —  ${G.scores[1]}`;
+    context = `${G.players[frameWinner]} wins the frame with a score of ${G.scores[frameWinner]} to ${G.scores[frameWinner===0?1:0]}.`;
     document.getElementById('winnerGifWrap').className='winner-gif-wrap';
     document.getElementById('nextFrameBtn').style.display='';
     document.getElementById('dismissWinnerBtn').style.display='none';
