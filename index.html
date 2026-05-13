@@ -35,7 +35,7 @@
   --border2:  #2d3d31;
   --hi:       #e8efe9;
   --mid:      #7a9480;
-  --low:      #3a5040;
+  --low:      #799480;
   --accent:   #4cff8a;
   --dim:      #111711;
   --scan:     rgba(76,255,138,0.008);
@@ -279,10 +279,10 @@ select option{ background:#111; }
 
 /* ─── STATUS STRIP ─── */
 .status-strip{ display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--border); border-bottom:1px solid var(--border); flex-shrink:0; }
-.stat-cell{ background:var(--bg); padding:7px 6px; text-align:center; }
-.stat-lbl{ font-family:'Share Tech Mono',monospace; font-size:7px; letter-spacing:1px; color:var(--low); text-transform:uppercase; margin-bottom:3px; }
+.stat-cell{ background:var(--bg); padding:15px 6px; text-align:center; }
+.stat-lbl{ font-family:'Share Tech Mono',monospace; font-size:9px; letter-spacing:1px; color:var(--low); text-transform:uppercase; margin-bottom:3px; }
 .stat-val{ font-family:'Orbitron',monospace; font-size:14px; font-weight:700; color:var(--hi); }
-.stat-val.phase{ font-size:11px; color:var(--accent); letter-spacing:1px; }
+.stat-val.phase{ font-size:15px; color:var(--accent); letter-spacing:1px; }
 
 /* ─── BALL GRID ─── */
 .ball-section{ padding:10px 12px 8px; flex-shrink:0; border-bottom:1px solid var(--border); }
@@ -433,12 +433,14 @@ select option{ background:#111; }
   width:100%; border-radius:12px; overflow:hidden;
   margin-bottom:16px; display:none;
   border:1px solid rgba(76,255,138,0.2);
+    border-color:rgb(255, 255, 255); box-shadow:0 0 20px rgba(185, 185, 184, 0.3);
+
 }
 .winner-gif-wrap.show{ display:block; }
-.winner-gif{ width:100%; height:160px; object-fit:cover; }
+.winner-gif{ width:100%; height:160px; object-fit:fill; }
 /* Special Oudom GIF */
 .winner-gif-wrap.oudom-special{
-  border-color:gold; box-shadow:0 0 20px rgba(255,215,0,0.3);
+    border-color:rgb(255, 255, 255); box-shadow:0 0 20px rgba(206, 206, 204, 0.734);
 }
 .winner-gif-wrap.oudom-special .winner-gif{
   /* Replace src in JS */
@@ -599,6 +601,27 @@ select option{ background:#111; }
   .conc-stats-grid{ grid-template-columns:1fr; }
   .modal-btns-3{ grid-template-columns:1fr 1fr; }
 }
+
+.snooker-status{
+  padding:8px 12px;
+  font-family:'Share Tech Mono',monospace;
+  font-size:10px;
+  letter-spacing:2px;
+  text-align:center;
+  border-top:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+}
+.snooker-status b{ font-family:'Orbitron',monospace; font-weight:900; }
+.snooker-status.warn{
+  background:rgba(241,196,15,0.08);
+  color:#f1c40f;
+  border-color:rgba(241,196,15,0.25);
+}
+.snooker-status.dead{
+  background:rgba(231,76,60,0.08);
+  color:#e74c3c;
+  border-color:rgba(231,76,60,0.25);
+}
 </style>
 </head>
 <body>
@@ -670,11 +693,11 @@ select option{ background:#111; }
       <div class="field-row">
         <div class="field-wrap">
           <div class="field-label">PLAYER 1</div>
-          <input type="text" id="p1" placeholder="ALPHA" maxlength="20"/>
+          <input type="text" id="p1" placeholder="Oudom" maxlength="20"/>
         </div>
         <div class="field-wrap">
           <div class="field-label">PLAYER 2</div>
-          <input type="text" id="p2" placeholder="BRAVO" maxlength="20"/>
+          <input type="text" id="p2" placeholder="Deepak" maxlength="20"/>
         </div>
       </div>
 
@@ -748,6 +771,8 @@ select option{ background:#111; }
     </div>
 
     <!-- SCOREBOARD -->
+     <div id="snookerStatus" class="snooker-status" style="display:none;"></div>
+
     <div class="scoreboard" id="scoreboard">
       <div class="player-side left" id="playerCell0">
         <div class="p-tag">P-01</div>
@@ -996,9 +1021,9 @@ const FIREBASE_URL = 'https://snooker-app-cc170-default-rtdb.asia-southeast1.fir
 const PHASE = { REDS:'REDS', COLORS:'COLOURS', ENDED:'ENDED' };
 const COLOR_ORDER = ['yellow','green','brown','blue','pink','black'];
 const LS_MATCHES = 'snk_matches_v3';
-let isMuted = false;
+let isMuted = true;
 
-/* ─── Oudom GIF URL — replace src here ─── */
+/* ─── Oudom GIF URLs ─── */
 const OUDOM_GIFS = [
   'https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif',
   'https://imgs.search.brave.com/t15TUptpFpWCZsXTHDlEKcoq7194HvCfmSoRG3agUuo/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9naWZk/Yi5jb20vaW1hZ2Vz/L2hpZ2gvcml6ei1t/ZW1lLW1hbi1mZWVs/LWdvb2QtYXQtc2Vs/Zi1laHlteTExbmE1/YTg4c3RuLmdpZg.gif',
@@ -1029,6 +1054,8 @@ let logSeq = 0;
 let firebaseListener = null;
 let pendingRoomCode = null;
 let selectedFrames = 1;
+let _myWriteId = 0;                  // ← unique ID for each local write
+let _pendingMyWrites = new Set();    // ← write IDs we've sent and expect echoes for
 
 /* ══════════════════════════════════════════════
    LOCAL STORAGE
@@ -1117,13 +1144,27 @@ function firebaseListen(code){
       const msg = JSON.parse(e.data);
       const remote = msg.data;
       if(!remote||!remote.scores||!remote.players) return;
-      const remoteTs = remote.updatedAt||0;
-      // FIX: don't overwrite G if this is just an echo of our own write
-      // (same timestamp = we wrote it, skip to avoid blowing away in-memory history)
-      if(remoteTs>0 && remoteTs===G.updatedAt && !G._pendingJoin) return;
+
+      // ── FLICKER FIX #1: Ignore echoes of our own writes (by writeId)
+      // Every local publish tags G._writeId with a unique number; Firebase
+      // echoes the same number back. We drop those events entirely.
+      if(remote._writeId && _pendingMyWrites.has(remote._writeId)){
+        _pendingMyWrites.delete(remote._writeId);
+        return;
+      }
+
+      // ── FLICKER FIX #2: Never downgrade to older state.
+      // If the remote payload is older than what we have locally, ignore it.
+      // (Happens when a stale echo arrives after we've already made a newer change.)
+      const remoteTs = remote.updatedAt || 0;
+      const localTs  = G.updatedAt || 0;
+      if(remoteTs > 0 && localTs > 0 && remoteTs < localTs && !G._pendingJoin) return;
+
+      // ── FLICKER FIX #3: Same-timestamp echo (legacy fallback) — skip
+      if(remoteTs > 0 && remoteTs === localTs && !G._pendingJoin) return;
+
       const prevScores = [...(G.scores||[0,0])];
       const wasPending = !!(G._pendingJoin);
-      // FIX: preserve the in-memory history array — never let Firebase wipe it
       const savedHistory = G.history||[];
       G = { ...remote, history: savedHistory, _pendingJoin:false };
       logSeq = (G.logs&&G.logs.length)||0;
@@ -1131,6 +1172,7 @@ function firebaseListen(code){
       if(wasPending) toast('MATCH SYNCED ✓');
       if(prevScores[0]!==G.scores[0]) animateScore(0);
       if(prevScores[1]!==G.scores[1]) animateScore(1);
+      updateBalls();
       render();
       const all = loadMatches();
       all[code] = { ...G, history:[], logs:(G.logs||[]).slice(0,40) };
@@ -1146,13 +1188,24 @@ function firebaseStopListen(){ if(firebaseListener){ firebaseListener.close(); f
 
 async function publishAll(){
   if(!currentRoomCode) return;
+
+  // Tag this write with a unique ID so we can recognize its echo
+  const writeId = ++_myWriteId;
+  _pendingMyWrites.add(writeId);
+  G._writeId = writeId;
   G.updatedAt = Date.now();
+
   saveMatch(currentRoomCode, G);
   renderLobby();
+
   if(firebaseConfigured()){
     const ok = await firebaseWrite(currentRoomCode, G);
     if(!ok) setSyncBar(false,'WRITE FAILED — CHECK FIREBASE URL');
   }
+
+  // Auto-expire write IDs after 10s to prevent memory leaks
+  // (in case Firebase never echoes back for whatever reason)
+  setTimeout(()=>_pendingMyWrites.delete(writeId), 10000);
 }
 function connectAbly(code){ firebaseListen(code); }
 function disconnectAbly(){ firebaseStopListen(); }
@@ -1191,7 +1244,7 @@ function updateHeader(screen){
     right.innerHTML=`
     <div class="icon-btn" onclick="confirmRestart()" title="Restart">✚</div>
     <div class="icon-btn" onclick="copyRoomCode()" title="Share">↪</div>
-    <div class="icon-btn" id="muteBtn" onclick="mute()" title="Frame Summary">${isMuted ? '🔇' : '🔊'}</div>
+    <div class="icon-btn" id="muteBtn" onclick="mute()" title="${isMuted?'Unmute':'Mute'}">${isMuted ? '🔇' : '🔊'}</div>
     <div class="icon-btn" onclick="openConclusion()" title="Frame Summary">≡</div>
     <div class="icon-btn" onclick="openAnalytics()" title="Analytics">!</div>
     `;
@@ -1199,7 +1252,7 @@ function updateHeader(screen){
 }
 
 function goLobby(){
-  setUrl(null);                      // ← ADD THIS
+  setUrl(null);
   disconnectAbly();
   currentRoomCode=null; G={};
   sessionStorage.removeItem('snk_last_room');
@@ -1210,7 +1263,6 @@ function mute(){
   isMuted = !isMuted;
   const btn = document.getElementById('muteBtn');
   if(!btn) return;
-
   btn.textContent = isMuted ? '🔇' : '🔊';
   btn.title = isMuted ? 'Unmute' : 'Mute';
 }
@@ -1228,7 +1280,6 @@ function goSetup(){
 async function copyRoomCode() {
   const code = currentRoomCode || pendingRoomCode;
   if (!code) return;
-
   const url = window.location.origin + '/' + code;
   const p1 = (G.players && G.players[0]) || 'PLAYER 1';
   const p2 = (G.players && G.players[1]) || 'PLAYER 2';
@@ -1252,7 +1303,7 @@ async function copyRoomCode() {
     try {
       await navigator.share({ title: `${p1} vs ${p2} · Live Snooker`, text: shareText, url });
       toast('SHARED ✓');
-    } catch (e) { /* cancelled */ }
+    } catch (e) {}
   } else {
     try {
       await navigator.clipboard.writeText(shareText);
@@ -1299,34 +1350,18 @@ function renderLobby(){
 
 function speakScore(input) {
   if (!window.speechSynthesis || isMuted) return;
-
-  const p0 = ((G.players && G.players[0]) || 'Player 1').includes('DOM') ? 'Odom' : ((G.players && G.players[0]) || 'Player 1');
-  const p1 = ((G.players && G.players[1]) || 'Player 2').includes('DOM') ? 'Odom' : ((G.players && G.players[1]) || 'Player 2');
+  const p0 = ((G.players && G.players[0]) || 'Player 1').replace(/(OUDOM|DOM)/gi, 'Odom').replace(/(VITOU)/gi, 'Vih tu').replace(/(PHEARA)/gi, 'Pheara').replace(/(DEEPAK)/gi, 'Di Pak').replace(/(KARUNA|KAKRUNA)/gi, 'KAKRUNA').replace(/(THAI|THAY)/gi, ' KHMER').replace(/(KOSAL)/gi, 'KOSOL').replace(/(HENG)/gi, 'HANG').replace(/\//g, ' and ');
+  const p1 = ((G.players && G.players[1]) || 'Player 2').replace(/(OUDOM|DOM)/gi, 'Odom').replace(/(VITOU)/gi, 'Vih tu').replace(/(PHEARA)/gi, 'Pheara').replace(/(DEEPAK)/gi, 'Di Pak').replace(/(KARUNA|KAKRUNA)/gi, 'KAKRUNA').replace(/(THAI|THAY)/gi, ' KHMER').replace(/(KOSAL)/gi, 'KOSOL').replace(/(HENG)/gi, 'HANG').replace(/\//g, ' and ');
+  if(input){
+    input = input.replace(/(OUDOM|DOM)/gi, 'Odom').replace(/(VITOU)/gi, 'Vih tu').replace(/(PHEARA)/gi, 'Pheara').replace(/(DEEPAK)/gi, 'Di Pak').replace(/(KARUNA|KAKRUNA)/gi, 'KAKRUNA').replace(/(THAI|THAY)/gi, ' KHMER').replace(/(KOSAL)/gi, 'KOSOL').replace(/(HENG)/gi, 'HANG').replace(/\//g, ' and ');
+  }
+  console.log(input, p0, p1);
   const s0 = G.scores[0] || 0;
   const s1 = G.scores[1] || 0;
-
-  const text = input != null && input !== ''
-    ? input
-    : `${p0} ${s0} — ${p1} ${s1}`;
-
-    
-
+  const text = input != null && input !== '' ? input : `${p0} ${s0} — ${p1} ${s1}`;
   const msg = new SpeechSynthesisUtterance(text);
   msg.rate = 0.4;
   msg.pitch = 1.4;
-  // msg.lang = 'en-GB';
-  
-
-  // const voices = window.speechSynthesis.getVoices();
-  // const preferred = ['Samantha'];
-
-  // const voice = preferred.reduce(
-  //   (found, name) => found || voices.find(v => v.name.includes(name)),
-  //   null
-  // );
-
-  // if (voice) msg.voice = voice;
-
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(msg);
 }
@@ -1361,7 +1396,7 @@ function joinByCode(){
 }
 
 function enterGameScreen(){
-  setUrl(currentRoomCode);           // ← ADD THIS
+  setUrl(currentRoomCode);
   if(currentRoomCode) sessionStorage.setItem('snk_last_room', currentRoomCode);
   showScreen('gameScreen');
   connectAbly(currentRoomCode);
@@ -1388,29 +1423,39 @@ function confirmDelete(){
 }
 
 /* ══════════════════════════════════════════════
-   GAME LOGIC
-   ══════════════════════════════════════════════ */
+   GAME LOGIC — REAL SNOOKER RULES
+   ══════════════════════════════════════════════
 
-/* ─── POINTS LEFT — FIXED ───
-   ENDED  → always 0
-   COLORS → sum of remaining colour values
-   REDS   → if nextIsRed: reds*8+27
-             if colour due: 7 + reds*8 + 27  (the upcoming colour can be up to 7)
+   PHASE.REDS sub-states (driven by G.nextIsRed):
+     nextIsRed=true   → player must pot a RED next
+     nextIsRed=false  → player must pot ANY COLOUR next (free choice)
+
+   PHASE.COLORS:
+     Players pot colours in fixed sequence: yellow → green → brown → blue → pink → black
+     G.colourIndex tracks position in COLOR_ORDER
+     A miss does NOT reset colourIndex — incoming player continues the sequence.
+
+   Transition from REDS → COLORS happens when:
+     (a) Last red is potted AND the free colour is then potted, OR
+     (b) A turn ends (miss/foul) while redsRemaining=0 AND nextIsRed=true
+         → no reds left and we're waiting for a red = phase is effectively over
+
+   The "free colour after last red" case:
+     If redsRemaining=0 and nextIsRed=false (just potted last red),
+     the current player still has a free colour. If they miss/foul, the
+     INCOMING player also gets a free colour (since the colour goes back on table).
+     We model this by keeping phase=REDS and nextIsRed=false across the switch.
 */
+
 function calcPointsLeft(s){
   if(s.phase===PHASE.ENDED) return 0;
   if(s.phase===PHASE.COLORS){
     const vals={yellow:2,green:3,brown:4,blue:5,pink:6,black:7};
     return COLOR_ORDER.slice(s.colourIndex).reduce((a,c)=>a+vals[c],0);
   }
-  // REDS phase
   const reds = Math.max(0, s.redsRemaining||0);
-  if(s.nextIsRed){
-    return reds * 8 + 27;
-  } else {
-    // A red was just potted; a colour is next (up to 7pts), then remaining reds cycle, then colours
-    return 7 + reds * 8 + 27;
-  }
+  if(s.nextIsRed) return reds * 8 + 27;
+  return 7 + reds * 8 + 27;
 }
 
 function newFrameState(players, reds, first, totalFrames, frameWins, frameHistory){
@@ -1428,8 +1473,8 @@ function newFrameState(players, reds, first, totalFrames, frameWins, frameHistor
 }
 
 function startGame(){
-  const p1=(document.getElementById('p1').value.trim()||'ALPHA').toUpperCase();
-  const p2=(document.getElementById('p2').value.trim()||'BRAVO').toUpperCase();
+  const p1=(document.getElementById('p1').value.trim()||'Oudom').toUpperCase();
+  const p2=(document.getElementById('p2').value.trim()||'Deepak').toUpperCase();
   const reds=parseInt(document.getElementById('redsCount').value);
   const first=parseInt(document.getElementById('breakFirst').value);
   currentRoomCode=pendingRoomCode||generateCode();
@@ -1442,7 +1487,7 @@ function startGame(){
   publishAll();
 }
 
-/* ─── UNDO ─── FIX: clamp redsRemaining on restore; never let Firebase echo blow away history */
+/* ─── UNDO ─── */
 function saveSnap(){
   G.history.push(JSON.stringify({...G, history:[]}));
   if(G.history.length>60) G.history.shift();
@@ -1453,39 +1498,33 @@ function undo(){
   const snap=JSON.parse(G.history.pop());
   snap.history=G.history;
   snap.logs=G.logs;
-  // Safety: redsRemaining must never be negative
   snap.redsRemaining = Math.max(0, snap.redsRemaining||0);
   G=snap;
   logEvent('system','UNDO','','');
-  // FIX: update balls IMMEDIATELY before any async I/O so there's zero lag
   updateBalls();
   persist(); render(); renderFrameBanner(); publishAll();
 }
 
-/* ─── POT BALL — FIX: instant DOM update + debounce guard ─── */
-// _potLock: timestamp of last accepted pot. Reject any second tap within 300ms.
+/* ─── POT BALL ─── */
 let _potLock = 0;
 
 function potBall(colour, pts){
   if(G.phase===PHASE.ENDED) return;
-
-  // Hard debounce: ignore taps faster than 300ms to prevent double-fire
   const now = Date.now();
   if(now - _potLock < 300) return;
 
-  // FIX: validate against CURRENT G state BEFORE touching anything
-  // This is the authoritative check — DOM classes can lag but G never does
+  // Validate against current state
   if(G.phase===PHASE.REDS){
     if(colour==='red' && !G.nextIsRed){ return warn('Pot a COLOUR next!'); }
     if(colour!=='red' && G.nextIsRed){ return warn('Pot a RED next!'); }
     if(colour==='red' && G.redsRemaining<=0){ return warn('No reds left!'); }
   } else if(G.phase===PHASE.COLORS){
-    if(colour!==COLOR_ORDER[G.colourIndex]){ return warn(`Pot ${COLOR_ORDER[G.colourIndex].toUpperCase()} next!`); }
+    if(colour!==COLOR_ORDER[G.colourIndex]){
+      return warn(`Pot ${COLOR_ORDER[G.colourIndex].toUpperCase()} next!`);
+    }
   }
 
-  // Accept this tap
   _potLock = now;
-
   saveSnap();
   const p=G.cur;
   G.scores[p]+=pts;
@@ -1497,29 +1536,30 @@ function potBall(colour, pts){
       G.nextIsRed=false;
       logEvent('pot',G.players[p],'POTS RED',`+${pts}`);
     } else {
+      // Potted a colour during REDS phase
       logEvent('pot',G.players[p],`POTS ${colour.toUpperCase()}`,`+${pts}`);
-      G.nextIsRed=true;
       if(G.redsRemaining===0){
-        G.phase=PHASE.COLORS; G.colourIndex=0;
+        // This was the free colour after the last red → transition to COLOURS phase
+        G.phase=PHASE.COLORS;
+        G.colourIndex=0;
+        G.nextIsRed=false;
         logEvent('system','ALL REDS CLEARED — COLOURS PHASE','','');
+      } else {
+        // Normal red→colour→red cycle continues
+        G.nextIsRed=true;
       }
     }
   } else if(G.phase===PHASE.COLORS){
     logEvent('pot',G.players[p],`POTS ${colour.toUpperCase()}`,`+${pts}`);
     G.colourIndex++;
     if(G.colourIndex>=COLOR_ORDER.length){
-      // FIX: update balls to all-disabled immediately before endFrame async work
       updateBalls();
       endFrame();
       return;
     }
   }
 
-  // FIX: update ball availability IMMEDIATELY after state mutation,
-  // before persist/publishAll which involve localStorage + async Firebase.
-  // This eliminates the visual lag where wrong balls appear enabled for ~100ms.
   updateBalls();
-
   animateScore(p); flashScoreboard();
   speakScore();
   persist(); render(); publishAll();
@@ -1531,7 +1571,7 @@ function missShot(){
   saveSnap();
   logEvent('miss',G.players[G.cur],'MISS — TURN ENDS','');
   switchTurn();
-  updateBalls(); // immediate update
+  updateBalls();
   persist(); render(); publishAll();
 }
 
@@ -1559,7 +1599,6 @@ function changeRedFoulCount(delta){
   document.getElementById('redFoulCount').textContent = redFoulCountVal;
 }
 
-/* Standard foul — points only, no red removal */
 function foul(pts){
   document.getElementById('foulOverlay').classList.add('hidden');
   if(G.phase===PHASE.ENDED) return;
@@ -1575,13 +1614,12 @@ function foul(pts){
   if(penalty>G.maxFoulPenalty[G.cur]) G.maxFoulPenalty[G.cur]=penalty;
 
   switchTurn();
-  updateBalls(); // immediate update
+  updateBalls();
   animateScore(opp); flashScoreboard();
   speakScore();
   persist(); render(); publishAll();
 }
 
-/* Red foul — 4pts penalty + removes N reds */
 function applyRedFoul(){
   document.getElementById('foulOverlay').classList.add('hidden');
   if(G.phase===PHASE.ENDED) return;
@@ -1596,18 +1634,13 @@ function applyRedFoul(){
   logEvent('foul',G.players[G.cur],`RED FOUL (${redsToRemove} RED${redsToRemove>1?'S':''} REMOVED) → ${G.players[opp]}`,`+${penalty}`);
   logEvent('system',`${G.redsRemaining} RED${G.redsRemaining!==1?'S':''} REMAIN ON TABLE`,'','');
 
-  if(G.redsRemaining===0 && G.phase===PHASE.REDS){
-    G.phase=PHASE.COLORS; G.colourIndex=0;
-    logEvent('system','ALL REDS CLEARED — COLOURS PHASE','','');
-  }
-
   if(!G.foulCount) G.foulCount=[0,0];
   G.foulCount[G.cur]++;
   if(!G.maxFoulPenalty) G.maxFoulPenalty=[0,0];
   if(penalty>G.maxFoulPenalty[G.cur]) G.maxFoulPenalty[G.cur]=penalty;
 
   switchTurn();
-  updateBalls(); // immediate update
+  updateBalls();
   animateScore(opp); flashScoreboard();
   speakScore();
   persist(); render(); publishAll();
@@ -1620,13 +1653,49 @@ function foulCustom(){
 }
 function flashInput(id){ const el=document.getElementById(id); el.style.borderColor='#e74c3c'; setTimeout(()=>{ el.style.borderColor=''; },600); }
 
-/* ─── TURN ─── */
+/* ─── TURN — handles all real snooker turn-switch logic ───
+
+   Called when a player misses or fouls. Decides what the INCOMING player
+   must do next based on the table state.
+
+   Cases (in REDS phase):
+     A) redsRemaining > 0, nextIsRed=true  (previous player was on a red)
+        → Incoming player must pot a red. Keep nextIsRed=true.
+     B) redsRemaining > 0, nextIsRed=false (previous player just potted a red,
+        then missed/fouled the free colour)
+        → Incoming player must pot a red (the colour goes back on its spot).
+        → Set nextIsRed=true.
+     C) redsRemaining = 0, nextIsRed=true  (previous player potted last colour
+        of red→colour cycle, then missed/fouled going for a red that doesn't exist)
+        → Transition to COLOURS phase starting from yellow.
+     D) redsRemaining = 0, nextIsRed=false (previous player just potted the LAST RED,
+        then missed/fouled the free colour)
+        → Incoming player still gets a free colour, then COLOURS phase begins.
+        → Keep phase=REDS, nextIsRed=false so any colour button is enabled.
+
+   In COLORS phase: incoming player continues the sequence (colourIndex unchanged).
+*/
 function switchTurn(){
-  G.cur=G.cur===0?1:0;
-  G.breaks[G.cur]=0;
-  // FIX: when switching turn in REDS phase, next ball is always red
-  // (foul during colour turn still resets to red for next player)
-  if(G.phase===PHASE.REDS) G.nextIsRed=true;
+  G.cur = G.cur===0 ? 1 : 0;
+  G.breaks[G.cur] = 0;
+
+  if(G.phase === PHASE.REDS){
+    if(G.redsRemaining > 0){
+      // Cases A & B: still reds on table → next player must pot a red
+      G.nextIsRed = true;
+    } else if(G.nextIsRed){
+      // Case C: no reds left, previous player was due a red → start COLOURS phase
+      G.phase = PHASE.COLORS;
+      G.colourIndex = 0;
+      G.nextIsRed = false;
+      logEvent('system','ALL REDS CLEARED — COLOURS PHASE','','');
+    } else {
+      // Case D: no reds left, previous player owed a free colour and missed it
+      //         → incoming player still gets a free colour
+      // Keep phase=REDS, nextIsRed=false (this is the "any colour" state)
+    }
+  }
+  // COLORS phase: colourIndex stays — incoming player continues sequence
 }
 
 /* ─── FRAME END ─── */
@@ -1693,6 +1762,8 @@ function showWinnerModal(frameWinner, matchOver){
     nameEl.textContent = matchWinner>=0 ? G.players[matchWinner]+' WINS' : 'DRAW';
     scoreEl.textContent = `${G.scores[0]}  —  ${G.scores[1]}`;
 
+    speakScore(nameEl.textContent + ' leading by ' + `${G.scores[0] - G.scores[1]}`);
+
     const gifWrap=document.getElementById('winnerGifWrap');
     const gifImg=document.getElementById('winnerGifImg');
     if(matchWinner>=0){
@@ -1710,7 +1781,6 @@ function showWinnerModal(frameWinner, matchOver){
     label.textContent=`// FRAME ${G.currentFrameNum||1} COMPLETE //`;
     nameEl.textContent = frameWinner>=0 ? G.players[frameWinner]+' WINS FRAME' : 'FRAME DRAWN';
     scoreEl.textContent = `${G.scores[0]}  —  ${G.scores[1]}`;
-    context = `${G.players[frameWinner]} wins the frame with a score of ${G.scores[frameWinner]} to ${G.scores[frameWinner===0?1:0]}.`;
     document.getElementById('winnerGifWrap').className='winner-gif-wrap';
     document.getElementById('nextFrameBtn').style.display='';
     document.getElementById('dismissWinnerBtn').style.display='none';
@@ -1761,49 +1831,48 @@ function persist(){
   if(currentRoomCode){ saveMatch(currentRoomCode, G); renderLobby(); }
 }
 
-/* ─── BALL AVAILABILITY — FIXED ───
-   Called immediately after every state mutation so buttons are never stale.
-   Logic is strictly derived from G (the source of truth), not DOM state.
+/* ─── BALL AVAILABILITY — derived purely from G ───
+   This is the single source of truth for which buttons are enabled.
+   Logic mirrors switchTurn() / potBall() perfectly.
 */
 function updateBalls(){
   const all=['red','yellow','green','brown','blue','pink','black'];
+  const colours=['yellow','green','brown','blue','pink','black'];
 
-  // First disable all
+  // Start with everything disabled
   all.forEach(b=>{
-    document.getElementById('btn-'+b).classList.add('disabled');
+    const el=document.getElementById('btn-'+b);
+    if(el) el.classList.add('disabled');
   });
 
-  if(G.phase===PHASE.ENDED){
-    return;
-  }
+  if(G.phase===PHASE.ENDED) return;
 
   if(G.phase===PHASE.REDS){
-
     if(G.nextIsRed){
+      // Must pot a red (only if reds are available)
       if(G.redsRemaining > 0){
-        document.getElementById('btn-red').classList.remove('disabled');
+        const el=document.getElementById('btn-red');
+        if(el) el.classList.remove('disabled');
       }
-
+      // If redsRemaining===0 AND nextIsRed===true, this is a transient state
+      // that switchTurn() should have already resolved into COLOURS phase.
+      // We do NOT silently auto-fix here to avoid hiding logic bugs.
     } else {
-
-      ['yellow','green','brown','blue','pink','black']
-      .forEach(b=>{
-        document.getElementById('btn-'+b).classList.remove('disabled');
+      // Free colour state — any colour can be potted
+      colours.forEach(b=>{
+        const el=document.getElementById('btn-'+b);
+        if(el) el.classList.remove('disabled');
       });
-
     }
-
   } else if(G.phase===PHASE.COLORS){
-
-    const current = COLOR_ORDER[G.colourIndex];
-
-    if(current){
-      document.getElementById('btn-'+current)
-      .classList.remove('disabled');
+    // Only the next colour in fixed sequence
+    const next=COLOR_ORDER[G.colourIndex];
+    if(next){
+      const el=document.getElementById('btn-'+next);
+      if(el) el.classList.remove('disabled');
     }
-
   }
-} 
+}
 
 /* ─── LOG ─── */
 function logEvent(type,who,action,pts){
@@ -1830,19 +1899,22 @@ function render(){
   const dot=document.getElementById('turnDot');
   dot.className='turn-dot '+(G.cur===0?'left':'right');
 
-  const nextLabel=G.phase===PHASE.REDS
-    ?(G.nextIsRed?'RED':'COLOUR')
-    :G.phase===PHASE.COLORS
-      ?(COLOR_ORDER[G.colourIndex]||'—').toUpperCase()
-      :'ENDED';
+  // Target label — reflects exactly what player must pot next
+  let nextLabel;
+  if(G.phase===PHASE.REDS){
+    if(G.nextIsRed) nextLabel='RED';
+    else nextLabel='COLOUR';
+  } else if(G.phase===PHASE.COLORS){
+    nextLabel = (COLOR_ORDER[G.colourIndex]||'—').toUpperCase();
+  } else {
+    nextLabel='ENDED';
+  }
 
   document.getElementById('nextTarget').textContent=nextLabel;
   document.getElementById('redsOnTable').textContent=Math.max(0, G.redsRemaining||0);
   document.getElementById('ptsAvail').textContent=calcPointsLeft(G);
   document.getElementById('gamePhase').textContent=G.phase;
 
-  // updateBalls is already called immediately in each action handler.
-  // Calling it again here in render() ensures remote-synced state is also reflected.
   updateBalls();
 
   const feed=document.getElementById('logFeed');
@@ -1854,6 +1926,22 @@ function render(){
       <span class="log-pts">${e.pts||''}</span>
     </div>
   `).join('');
+
+  const sit = calcSnookerSituation(G);
+const banner = document.getElementById('snookerStatus');
+if(banner){
+  if(sit.status === 'open' || sit.status === 'level' || sit.status === 'ended'){
+    banner.style.display = 'none';
+  } else if(sit.status === 'snookers'){
+    banner.style.display = 'block';
+    banner.className = 'snooker-status warn';
+    banner.innerHTML = `<b>${G.players[sit.trailer]}</b> REQUIRES <b>${sit.snookersNeeded}</b> SNOOKER${sit.snookersNeeded>1?'S':''}`;
+  } else if(sit.status === 'decided'){
+    banner.style.display = 'block';
+    banner.className = 'snooker-status dead';
+    banner.innerHTML = `<b>FRAME DECIDED</b> · ${G.players[sit.leader]} WINS`;
+  }
+}
 }
 
 /* ─── ANIMATIONS ─── */
@@ -2234,6 +2322,7 @@ function renderAnalytics(){
   const ballTotal=Object.fromEntries(Object.keys(ballStyles).map(b=>[b,(a.stats[0].ballCounts[b]||0)+(a.stats[1].ballCounts[b]||0)]));
   document.getElementById('anBalls').innerHTML=Object.keys(ballStyles).map(b=>`<div class="an-ball"><div class="an-ball-dot" style="background:${ballStyles[b]}">${ballPts[b]}</div><div class="an-ball-lbl">${ballAbbr[b]}</div><div class="an-ball-count">${ballTotal[b]}</div></div>`).join('');
 }
+
 /* ══════════════════════════════════════════════
    URL ROUTING
    ══════════════════════════════════════════════ */
@@ -2242,16 +2331,15 @@ function setUrl(code){
   if(window.location.pathname !== target)
     history.replaceState(null,'',target);
 }
+
 /* ══════════════════════════════════════════════
    INIT
    ══════════════════════════════════════════════ */
 (function init(){
-  // 1. Check URL path for a room code  e.g. /HAJDU
   const pathCode = window.location.pathname.replace(/^\//, '').trim().toUpperCase();
   if(pathCode && /^[A-Z0-9]{4,8}$/.test(pathCode)){
     const all = loadMatches();
     if(all[pathCode]){
-      // Known match — join directly
       currentRoomCode = pathCode;
       G = { ...all[pathCode], history:[], _pendingJoin:true };
       logSeq = (G.logs && G.logs.length) || 0;
@@ -2260,7 +2348,6 @@ function setUrl(code){
       toast('JOINING '+pathCode+'…');
       return;
     } else {
-      // Unknown code — could be a remote-only match; attempt to join via Firebase
       currentRoomCode = pathCode;
       G = { players:['—','—'], scores:[0,0], breaks:[0,0], cur:0,
             redsRemaining:15, phase:PHASE.REDS, nextIsRed:true,
@@ -2273,7 +2360,6 @@ function setUrl(code){
     }
   }
 
-  // 2. No URL code — fall back to session restore or lobby
   const lastCode = sessionStorage.getItem('snk_last_room');
   if(lastCode){
     const all = loadMatches();
@@ -2294,6 +2380,69 @@ function setUrl(code){
 
 function randomGif(arr){
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/* ─── SNOOKER MATH — real broadcast scoreboard logic ─── */
+function calcSnookerSituation(s){
+  if(s.phase === PHASE.ENDED) return { status:'ended' };
+
+  const ptsLeft = calcPointsLeft(s);
+  const score0 = s.scores[0] || 0;
+  const score1 = s.scores[1] || 0;
+
+  // Identify leader / trailer
+  if(score0 === score1){
+    return { status:'level', diff:0, ptsLeft };
+  }
+  const leader  = score0 > score1 ? 0 : 1;
+  const trailer = leader === 0 ? 1 : 0;
+  const diff = Math.abs(score0 - score1);
+
+  // Highest remaining ball value (for snooker math)
+  let highestBall;
+  if(s.phase === PHASE.REDS){
+    highestBall = 7;  // black still available as free colour
+  } else {
+    // In COLOURS phase, highest is whatever's left in sequence
+    const vals = {yellow:2,green:3,brown:4,blue:5,pink:6,black:7};
+    const remaining = COLOR_ORDER.slice(s.colourIndex);
+    highestBall = remaining.length ? vals[remaining[remaining.length-1]] : 0;
+  }
+
+  // Can the trailer still win by potting alone?
+  if(diff <= ptsLeft){
+    return {
+      status:'open',           // either player can still win on pots
+      leader, trailer, diff, ptsLeft
+    };
+  }
+
+  // Trailer must rely on snookers
+  // shortfall = points needed beyond what's on the table
+  const shortfall = diff - ptsLeft;
+  // each snooker is worth at minimum: 4 (foul) + 4 (smallest meaningful gain) = 8
+  // but more precisely: foul value (min 4, up to 7) + highest ball value
+  const perSnooker = 4 + highestBall;   // best-case per snooker
+  const snookersNeeded = Math.ceil(shortfall / perSnooker);
+
+  // Is it mathematically impossible even WITH snookers?
+  // Max gain from snookers: snookersNeeded * 7 (max foul) - but typically capped
+  // Frame is "dead" when shortfall > (remaining_balls_count × 7)
+  // Conservative: if only 1-2 balls left and shortfall huge → dead frame
+  const ballsLeft = (s.phase === PHASE.REDS)
+    ? s.redsRemaining + 6
+    : COLOR_ORDER.length - s.colourIndex;
+
+  // A frame is realistically dead if you can't get enough fouls in
+  // (very rough heuristic — real snooker has handshakes for this)
+  const maxPossibleGain = ptsLeft + (ballsLeft * 7);  // every shot fouled at max 7
+  const frameDecided = diff > maxPossibleGain;
+
+  return {
+    status: frameDecided ? 'decided' : 'snookers',
+    leader, trailer, diff, ptsLeft,
+    snookersNeeded, ballsLeft
+  };
 }
 </script>
 </body>
