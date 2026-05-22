@@ -681,7 +681,7 @@ function selectSubStarter(teamIndex,subIndex){
 function pronounce(s){
   return (s||'').replace(/(OUDOM|DOM)/gi,'Odom').replace(/VITOU/gi,'Vih tu').replace(/PHEARA/gi,'Pheara').replace(/DEEPAK/gi,'Di Pak').replace(/KARUNA|KAKRUNA/gi,'Kakruna').replace(/KOSAL/gi,'Kosol').replace(/HENG/gi,'Hang').replace(/\//g,' and ');
 }
-function speakScore(input, rate = 0.4, pitch = 1.4, volume = 1){
+function speakScore(input, rate = 0.4, pitch = 1.4, volume = 1,onEnd = null){
   if(!window.speechSynthesis||isMuted) return;
   const p0=pronounce(G.players&&G.players[0]);
   const p1=pronounce(G.players&&G.players[1]);
@@ -692,6 +692,9 @@ function speakScore(input, rate = 0.4, pitch = 1.4, volume = 1){
   msg.rate=rate; msg.pitch=pitch;
   msg.volume = volume;
   speechSynthesis.speak(msg);
+  if(onEnd){
+    msg.onend = onEnd;
+  }
 }
 
 /* ── LOCAL STORAGE ── */
@@ -917,7 +920,142 @@ function potBall(colour,pts){
     G.colourIndex++;
     if(G.colourIndex>=COLOR_ORDER.length){ updateBalls(); endFrame(); return; }
   }
-  updateBalls(); animateScore(p); flashScoreboard(); speakScore();
+  const name=getActiveName(G.cur);
+  updateBalls(); animateScore(p); flashScoreboard(); 
+const funnyLines = [
+    `Wowww Mister ${name} casually deletes the ${colour} ball from existence`,
+    `Ladies and gentlemen... Mister ${name} pots the ${colour} like a true champion`,
+    `Oh my goodness, ${name} is absolutely cooking with that ${colour} ball`,
+    `Somebody stop Mister ${name}, another beautiful ${colour} pot`,
+    `The crowd goes wild as Mister ${name} sinks the ${colour}`,
+    `Clean. Elegant. Dangerous. Mister ${name} pots the ${colour}`,
+    `Breaking news: Mister ${name} has officially adopted the ${colour} ball`,
+    `That ${colour} ball never stood a chance against Mister ${name}`,
+    `What a shot by Mister ${name} on the ${colour}`,
+    `${name} with the confidence level of prime Ronnie O'Sullivan`,
+    `Mister ${name} sends the ${colour} ball straight to the shadow realm`,
+    `Absolutely filthy pot from Mister ${name} on the ${colour}`,
+    `Snooker professors will study that ${colour} pot for generations`,
+    `The table is terrified of Mister ${name} right now`,
+    `Another silky smooth ${colour} from the legendary Mister ${name}`,
+    `Mister ${name} pots the ${colour} with zero respect for physics`,
+    `That shot was sponsored by pure talent`,
+    `Mister ${name} out here farming snooker points again`,
+    `The aura around Mister ${name} is unbelievable after that ${colour}`,
+    `Even the referee is impressed by that ${colour} ball`,
+    `Come on bro... Mister ${name} just violated that ${colour} ball 💀`,
+
+  `Nahhhhh ${name} is actually farming clips at this point`,
+
+  `That ${colour} ball got unfollowed from reality instantly`,
+
+  `Mister ${name} said skill issue and deleted the ${colour}`,
+
+  `Bro really potted the ${colour} like he pays the table rent`,
+
+  `THE AURA IS INSANE 🗣️ Mister ${name} sinks the ${colour}`,
+
+  `This man is not playing snooker he is producing cinema 🎬`,
+
+  `The ${colour} ball just experienced generational trauma`,
+
+  `Mister ${name} with the premium deluxe giga-chad pot`,
+
+  `That shot was cleaner than my search history`,
+
+  `Bro is moving like prime Ronnie after 3 energy drinks`,
+
+  `Nah the ${colour} ball got sent to the backrooms`,
+
+  `${name} out here playing 8K ultra HD snooker`,
+
+  `Somebody check Mister ${name} PC for aim assist immediately`,
+
+  `That ${colour} pot was absolutely disrespectful 😭`,
+
+  `Bro potted that with negative ping`,
+
+  `The ${colour} ball just got evicted by Mister ${name}`,
+
+  `Mister ${name} is lowkey cooking too hard right now`,
+
+  `That shot had zero business being that clean`,
+
+  `The table is filing a restraining order against ${name}`,
+
+  `Mister ${name} really woke up and chose violence today`,
+
+  `That ${colour} ball got ratioed instantly`,
+
+  `Bro hit the ${colour} ball with maximum emotional damage`,
+
+  `This is not snooker anymore this is a boss battle`,
+
+  `Mister ${name} is farming XP from these balls`,
+
+  `That pot was smoother than a TikTok transition`,
+
+  `Bro just quick-scoped the ${colour} ball 🎯`,
+
+  `The commentators are currently screaming internally`,
+
+  `That ${colour} ball disappeared faster than my motivation`,
+
+  `Nahhhh this man got the snooker DLC early`,
+
+  `${name} with another illegal level pot 🚨`,
+
+  `The ${colour} ball got absolutely nerfed`,
+
+  `This brother is absolutely LOCKED IN 🔥`,
+
+  `Bro potted the ${colour} like rent was due tomorrow`,
+
+  `Mister ${name} with that certified main character energy`,
+
+  `That shot just increased property value around the table`,
+
+  `The ${colour} ball is requesting a refund`,
+
+  `Bro is casually speedrunning snooker right now`,
+
+  `That pot was sponsored by pure aura`,
+
+  `Mister ${name} is playing chess while everyone else plays checkers`,
+
+  `Nah the cue ball obeys him out of fear`,
+
+  `This table belongs to ${name} now legally speaking`,
+
+  `The ${colour} ball got folded respectfully`,
+
+  `Mister ${name} just dropped a snooker edit montage shot`,
+
+  `Bro really said Ctrl Alt Delete on the ${colour} ball`,
+
+  `That pot healed my depression a little bit`,
+
+  `Mister ${name} is built different respectfully`,
+
+  `The ${colour} ball got absolutely humbled`,
+
+  `That shot deserves its own Netflix documentary`,
+
+  `${name} really said watch this and cooked everybody`
+  ];
+
+  const randomLine =
+    funnyLines[Math.floor(Math.random() * funnyLines.length)];
+
+    speakScore(
+      randomLine,
+      1,
+      0.9,
+      1,
+      onEnd = () => {
+        speakScore();
+      }
+    );
   persist(); render(); publishAll();
 }
 
@@ -1006,7 +1144,156 @@ function showWinnerModal(fw,matchOver){
     label.textContent=tf>1?'// MATCH COMPLETE //':'// FRAME COMPLETE //';
     nameEl.textContent=mw>=0?G.players[mw]+' WINS':'DRAW';
     scoreEl.textContent=`${G.scores[0]}  —  ${G.scores[1]}`;
-    speakScore(nameEl.textContent);
+    const leadDiff = Math.abs(G.scores[0] - G.scores[1]);
+
+let winSpeech = '';
+
+if(mw >= 0){
+
+  const winnerName = G.players[mw];
+  const loserScore = G.scores[1 - mw];
+  const winnerScore = G.scores[mw];
+
+ const funnyWinLines = [
+
+  `LADIES AND GENTLEMENNNN 🗣️ ${winnerName} just committed snooker terrorism`,
+
+  `Nahhhhh ${winnerName} really turned the table into a content farm 💀`,
+
+  `${winnerName} just hit a generational clip and nobody can stop replaying it`,
+
+  `Brooooo ${winnerName} just cooked so hard the cue ball filed for divorce`,
+
+  `${winnerName} wins by ${leadDiff} points. This is not a match this is cyberbullying`,
+
+  `THEY NEED TO INVESTIGATE ${winnerName} FOR AIMBOT IMMEDIATELY 🚨`,
+
+  `${winnerName} just packed the opponent into a TikTok highlight compilation`,
+
+  `Somebody unplug ${winnerName} bro is playing on creative mode`,
+
+  `${winnerName} really said difficulty easy and pressed start`,
+
+  `That scoreline is absolutely diabolical 😭`,
+
+  `${winnerName} just sent the opponent back to the tutorial level`,
+
+  `This was NOT a snooker match this was a villain origin story`,
+
+  `${winnerName} got more aura than the entire tournament combined`,
+
+  `The opponent after this match: uninstalling emotionally`,
+
+  `${winnerName} wins ${winnerScore} to ${loserScore}. Bro was moving like prime anime protagonist`,
+
+  `Nahhhh this is the type of defeat that changes your personality forever`,
+
+  `${winnerName} just converted skill into emotional damage`,
+
+  `This table officially belongs to ${winnerName} now legally speaking`,
+
+  `${winnerName} just downloaded the opponent's gameplay mid-match`,
+
+  `The cue ball obeys ${winnerName} out of pure fear`,
+
+  `${winnerName} wins by ${leadDiff}. Humanity was not prepared for this performance`,
+
+  `Bro really entered ultra instinct during frame 3 💀`,
+
+  `${winnerName} just made snooker look pay-to-win`,
+
+  `That opponent is gonna remember this score while trying to sleep tonight`,
+
+  `${winnerName} really spawned in with maxed-out stats`,
+
+  `This match had less balance than a broken multiplayer lobby`,
+
+  `${winnerName} wins by ${leadDiff}. Certified main character behavior`,
+
+  `Bro hit every shot like rent was due in 10 minutes`,
+
+  `${winnerName} just speedran the opponent's confidence`,
+
+  `Nah the commentators are fighting for their lives trying to stay professional`,
+
+  `${winnerName} cooked so hard Gordon Ramsay started taking notes`,
+
+  `That scoreline is straight-up illegal in 42 countries`,
+
+  `${winnerName} really said watch this and changed the course of history`,
+
+  `The opponent got folded like a PowerPoint presentation`,
+
+  `${winnerName} just completed the side quest, main quest, and DLC`,
+
+  `That was less a victory and more a live demonstration`,
+
+  `${winnerName} just activated beast mode without warning`,
+
+  `This was basically a sponsored humiliation stream`,
+
+  `${winnerName} wins by ${leadDiff}. The crowd is currently losing their minds`,
+
+  `Bro was aiming with GPS precision all night`,
+
+  `${winnerName} just turned snooker into a spectator sport for suffering`,
+
+  `The opponent right now: buffering emotionally`,
+
+  `${winnerName} really dropped a 4K HDR performance tonight`,
+
+  `That match had the energy of a final boss cutscene`,
+
+  `${winnerName} wins and gains plus 10,000 aura instantly`,
+
+  `Nahhhh somebody nerf ${winnerName} in the next patch notes`,
+
+  `${winnerName} just farmed XP from living human beings`,
+
+  `This scoreline belongs in a museum honestly`,
+
+  `${winnerName} just made physics look optional`,
+
+  `The opponent is currently questioning every life decision that led here`,
+
+  `${winnerName} cooked with extra sauce tonight 🍳🔥`,
+
+  `That wasn't snooker. That was a cinematic universe event`,
+
+  `${winnerName} wins by ${leadDiff}. Absolutely disrespectful gameplay`,
+
+  `Bro moved through the frame like a paid actor`,
+
+  `${winnerName} just gave the audience free premium entertainment`,
+
+  `The table after this match: I need therapy`,
+
+  `${winnerName} was hitting shots like the WiFi password depended on it`,
+
+  `That was the most illegal legal performance ever witnessed`,
+
+  `${winnerName} just transformed the opponent into a motivational quote`
+
+];
+
+  winSpeech =
+    funnyWinLines[
+      Math.floor(Math.random() * funnyWinLines.length)
+    ];
+
+} else {
+
+  winSpeech = `The frame ends in a draw`;
+
+}
+
+speakScore(
+  winSpeech,
+  .8,
+  .4,
+  2,
+  null
+);
     const gifWrap=document.getElementById('winnerGifWrap'), gifImg=document.getElementById('winnerGifImg');
     if(mw>=0){ const isOudom=G.players[mw].toUpperCase().includes('UDOM')||G.players[mw].toUpperCase().includes('ODOM'); gifWrap.className='winner-gif-wrap show'+(isOudom?' oudom-special':''); gifImg.src=isOudom?randomGif(OUDOM_GIFS):randomGif(DEFAULT_GIFS); }
     else gifWrap.className='winner-gif-wrap';
