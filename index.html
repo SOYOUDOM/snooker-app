@@ -648,14 +648,61 @@ function buildNameHTML(teamIndex){
   }).join('<span style="color:var(--low);padding:0 1px">/</span>');
 }
 function speakPlayer(teamIndex){
-  if(!window.speechSynthesis||isMuted) return;
-  const name=getActiveName(teamIndex);
-  // window.speechSynthesis.cancel();
-  // const utt=new SpeechSynthesisUtterance(name+', your turn');
-  // utt.rate=0.95; utt.volume=1;
-  // speechSynthesis.speak(utt);
 
-      speakScore(name+', your turn', 0.95, volume=1);
+  if(!window.speechSynthesis || isMuted) return;
+
+  let name = getActiveName(teamIndex).trim();
+
+  const normalIntro = [
+
+    `${name}, your turn at the table`,
+    `Alright ${name}, time to cook`,
+    `${name}, show us what you got`,
+    `${name}, the table is yours`,
+    `Your shot ${name}`,
+    `${name}, lock in`,
+    `${name}, let's see some magic`,
+    `${name}, time for the comeback`,
+    `${name}, don't sell this`,
+    `${name}, cue in hand, aura activated`
+
+  ];
+
+  const udomIntro = [
+
+    `Ladies and Gentlemen Mister Oudom has entered the arena`,
+
+    `WOW WOW WOW WOW WOW, please remain calm... Mister Oudom approaches the table`,
+
+    `The crowd goes silent as Mister Oudom locks in`,
+
+    `Ayo everybody wake up, Mister Oudom is cooking again`,
+
+    `Breaking news: Mister Oudom is about to farm another frame`,
+
+    `The final boss, Mister Oudom, steps up to the table`,
+
+    `Please fasten your seatbelts, Mister Oudom is now playing snooker`,
+
+    `The aura in the room just increased dramatically. Mister Oudom's turn`,
+
+    `Somebody start recording, Mister Oudom is at the table`,
+
+    `Ladies and gentlemen, the table belongs to Mister Oudom now`
+
+  ];
+
+  const line =
+    name.toLowerCase().includes('udom')
+      ? udomIntro[Math.floor(Math.random() * udomIntro.length)]
+      : normalIntro[Math.floor(Math.random() * normalIntro.length)];
+
+  speakScore(
+    line,
+    0.92,
+    1.2,
+    1
+  );
 }
 
 /* ── SETUP SUB-PICKER ── */
