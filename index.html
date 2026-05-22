@@ -604,7 +604,6 @@ select option{ background:#111; }
   <div class="sheet conclusion-sheet" onclick="event.stopPropagation()">
     <div class="sheet-handle"></div>
     <div class="sheet-title">MATCH SUMMARY</div>
-    <div class="sheet-sub">// FRAME STATISTICS //</div>
     <div class="conc-frame-tab" id="conclusionTabs"></div>
     <div id="conclusionContent"></div>
     <button class="sheet-cancel" style="margin-top:4px" onclick="closeConclusionOverlay()">CLOSE</button>
@@ -651,10 +650,12 @@ function buildNameHTML(teamIndex){
 function speakPlayer(teamIndex){
   if(!window.speechSynthesis||isMuted) return;
   const name=getActiveName(teamIndex);
-  window.speechSynthesis.cancel();
-  const utt=new SpeechSynthesisUtterance(name+', your turn');
-  utt.rate=0.95; utt.volume=1;
-  speechSynthesis.speak(utt);
+  // window.speechSynthesis.cancel();
+  // const utt=new SpeechSynthesisUtterance(name+', your turn');
+  // utt.rate=0.95; utt.volume=1;
+  // speechSynthesis.speak(utt);
+
+      speakScore(name+', your turn', 0.95, volume=1);
 }
 
 /* ── SETUP SUB-PICKER ── */
@@ -680,7 +681,7 @@ function selectSubStarter(teamIndex,subIndex){
 function pronounce(s){
   return (s||'').replace(/(OUDOM|DOM)/gi,'Odom').replace(/VITOU/gi,'Vih tu').replace(/PHEARA/gi,'Pheara').replace(/DEEPAK/gi,'Di Pak').replace(/KARUNA|KAKRUNA/gi,'Kakruna').replace(/KOSAL/gi,'Kosol').replace(/HENG/gi,'Hang').replace(/\//g,' and ');
 }
-function speakScore(input){
+function speakScore(input, rate = 0.4, pitch = 1.4, volume = 1){
   if(!window.speechSynthesis||isMuted) return;
   const p0=pronounce(G.players&&G.players[0]);
   const p1=pronounce(G.players&&G.players[1]);
@@ -688,7 +689,8 @@ function speakScore(input){
   const text=input?pronounce(input):`${p0} ${s0} — ${p1} ${s1}`;
   window.speechSynthesis.cancel();
   const msg=new SpeechSynthesisUtterance(text);
-  msg.rate=0.4; msg.pitch=1.4;
+  msg.rate=rate; msg.pitch=pitch;
+  msg.volume = volume;
   speechSynthesis.speak(msg);
 }
 
@@ -804,7 +806,7 @@ async function copyRoomCode(){
   const p1=(G.players&&G.players[0])||'PLAYER 1', p2=(G.players&&G.players[1])||'PLAYER 2';
   const s0=G.scores?.[0]??0, s1=G.scores?.[1]??0;
   const phase=G.phase==='COLOURS'?'🎨 Colours':G.phase==='ENDED'?'🏁 Over':`🔴 ${G.redsRemaining??15} Reds`;
-  const text=`🎱 SNOOKER LIVE\n\n${p1}  ${s0} — ${s1}  ${p2}\n\n📍 ${phase}\n🔑 Room · ${code}\n\n👇 Watch live\n${url}`;
+  const text=`🎱 SNOOKER LIVE\n\n${p1}  ${s0} — ${s1}  ${p2}\n\n📍 ${phase}\n🔑 Room · ${code}\n\n👇 Watch live\n`;
   if(navigator.share){ try{ await navigator.share({title:`${p1} vs ${p2}`,text,url}); toast('SHARED ✓'); }catch(e){} }
   else{ try{ await navigator.clipboard.writeText(text); toast('COPIED ✓'); }catch(e){ toast('COPY FAILED','err'); } }
 }
@@ -1187,7 +1189,7 @@ function openConclusion(){
   renderConclusionTabs(frames); renderConclusionFrame(frames,conclusionActiveFrame);
   document.getElementById('conclusionOverlay').classList.remove('hidden');
 }
-function renderConclusionTabs(frames){ document.getElementById('conclusionTabs').innerHTML=frames.map((f,i)=>`<div class="conc-tab${i===conclusionActiveFrame?' active':''}" onclick="switchConclusionTab(${i})">${f.live?'🟢 LIVE':'FRAME '+f.frame}</div>`).join(''); }
+function renderConclusionTabs(frames){ document.getElementById('conclusionTabs').innerHTML=frames.map((f,i)=>``).join(''); }
 function switchConclusionTab(i){
   const frames=[...(G.frameHistory||[])];
   if(G.phase!==PHASE.ENDED&&G.logs&&G.logs.length>0) frames.push({frame:G.currentFrameNum||1,scores:[...G.scores||[0,0]],winner:-1,players:[...G.players],logs:[...G.logs||[]],foulCount:[...G.foulCount||[0,0]],maxFoulPenalty:[...G.maxFoulPenalty||[0,0]],maxBreak:computeMaxBreak(G.logs||[],G.players),totalPots:computeTotalPots(G.logs||[],G.players),ballCounts:computeBallCounts(G.logs||[],G.players),live:true});
