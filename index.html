@@ -1125,26 +1125,231 @@ function changeRedFoulCount(d){ redFoulCountVal=Math.max(1,Math.min(G.redsRemain
 function foul(pts){
   document.getElementById('foulOverlay').classList.add('hidden');
   if(G.phase===PHASE.ENDED) return;
-  saveSnap(); const opp=1-G.cur, penalty=Math.max(pts,4);
+  saveSnap(); 
+  const opp=1-G.cur, penalty=Math.max(pts,4);
+  const fouler = G.cur;
+  const opp1 = 1 - fouler;
+
+  const foulerName = getActiveName(fouler);
+  const oppName = getActiveName(opp1);
   G.scores[opp]+=penalty;
   logEvent('foul',getActiveName(G.cur),`FOUL → ${G.players[opp]}`,`+${penalty}`);
   if(!G.foulCount) G.foulCount=[0,0]; G.foulCount[G.cur]++;
   if(!G.maxFoulPenalty) G.maxFoulPenalty=[0,0]; if(penalty>G.maxFoulPenalty[G.cur]) G.maxFoulPenalty[G.cur]=penalty;
-  switchTurn(); updateBalls(); animateScore(opp); flashScoreboard(); speakScore();
+  switchTurn(); updateBalls(); animateScore(opp); flashScoreboard(); // 🔥 FUNNY FOUL SPEECH
+  const isUdom =
+    foulerName.toUpperCase().includes('UDOM');
+
+  if(!isUdom){
+
+    const foulLines = [
+
+      `${foulerName} just donated ${penalty} points like a charity streamer`,
+
+      `NAHHHH foul detected. ${foulerName} is fighting the table and losing`,
+
+      `${foulerName} with a tactical donation to ${oppName}`,
+
+      `That cue ball just filed a complaint against ${foulerName}`,
+
+      `${foulerName} really said accuracy is optional today`,
+
+      `Generational miss by ${foulerName} 💀`,
+
+      `${foulerName} just gave away free DLC points`,
+
+      `The referee is currently judging ${foulerName} very hard`,
+
+      `${foulerName} accidentally pressed self destruct`,
+
+      `BROOOOO that foul was criminal 😭`,
+
+      `${oppName} receives ${penalty} emotional support points`,
+
+      `${foulerName} just boosted the opponent for free`,
+
+      `That shot had the structural integrity of wet noodles`,
+
+      `${foulerName} with the premium disaster class`,
+
+      `The cue ball has officially unfollowed ${foulerName}`,
+
+      `${foulerName} just invented a new way to lose points`,
+
+      `That foul was sponsored by bad decisions`,
+
+      `${foulerName} currently playing snooker on hard mode`,
+
+      `This is why the cue ball needs therapy`,
+
+      `${foulerName} just donated points with zero hesitation`
+
+    ];
+
+    const randomLine =
+      foulLines[Math.floor(Math.random() * foulLines.length)];
+
+    speakScore(
+      randomLine,
+      0.92,
+      1.2,
+      1,
+      () => {
+        speakScore();
+      }
+    );
+
+  } else {
+
+    // Respect Mister Oudom 😭
+    speakScore();
+
+  }
   persist(); render(); publishAll();
 }
+// function applyRedFoul(){
+//   document.getElementById('foulOverlay').classList.add('hidden');
+//   if(G.phase===PHASE.ENDED) return;
+//   saveSnap(); 
+//   const opp=1-G.cur, penalty=4;
+//   const n=Math.min(redFoulCountVal,G.redsRemaining);
+//   G.scores[opp]+=penalty; G.redsRemaining=Math.max(0,G.redsRemaining-n);
+//   logEvent('foul',getActiveName(G.cur),`RED FOUL (${n} RED${n>1?'S':''} REMOVED) → ${G.players[opp]}`,`+${penalty}`);
+//   logEvent('system',`${G.redsRemaining} RED${G.redsRemaining!==1?'S':''} REMAIN ON TABLE`,'','');
+//   if(!G.foulCount) G.foulCount=[0,0]; G.foulCount[G.cur]++;
+//   if(!G.maxFoulPenalty) G.maxFoulPenalty=[0,0]; if(penalty>G.maxFoulPenalty[G.cur]) G.maxFoulPenalty[G.cur]=penalty;
+//   switchTurn(); updateBalls(); animateScore(opp); flashScoreboard(); speakScore();
+//   persist(); render(); publishAll();
+// }
+
 function applyRedFoul(){
+
   document.getElementById('foulOverlay').classList.add('hidden');
+
   if(G.phase===PHASE.ENDED) return;
-  saveSnap(); const opp=1-G.cur, penalty=4;
-  const n=Math.min(redFoulCountVal,G.redsRemaining);
-  G.scores[opp]+=penalty; G.redsRemaining=Math.max(0,G.redsRemaining-n);
-  logEvent('foul',getActiveName(G.cur),`RED FOUL (${n} RED${n>1?'S':''} REMOVED) → ${G.players[opp]}`,`+${penalty}`);
-  logEvent('system',`${G.redsRemaining} RED${G.redsRemaining!==1?'S':''} REMAIN ON TABLE`,'','');
-  if(!G.foulCount) G.foulCount=[0,0]; G.foulCount[G.cur]++;
-  if(!G.maxFoulPenalty) G.maxFoulPenalty=[0,0]; if(penalty>G.maxFoulPenalty[G.cur]) G.maxFoulPenalty[G.cur]=penalty;
-  switchTurn(); updateBalls(); animateScore(opp); flashScoreboard(); speakScore();
-  persist(); render(); publishAll();
+
+  saveSnap();
+
+  const fouler = G.cur;
+  const opp = 1 - fouler;
+
+  const foulerName = getActiveName(fouler);
+  const oppName = getActiveName(opp);
+
+  const penalty = 4;
+
+  const n = Math.min(redFoulCountVal, G.redsRemaining);
+
+  G.scores[opp] += penalty;
+
+  // remove reds
+  G.redsRemaining = Math.max(0, G.redsRemaining - n);
+
+  logEvent(
+    'foul',
+    foulerName,
+    `RED FOUL (${n} RED${n>1?'S':''} REMOVED) → ${G.players[opp]}`,
+    `+${penalty}`
+  );
+
+  logEvent(
+    'system',
+    `${G.redsRemaining} RED${G.redsRemaining!==1?'S':''} REMAIN ON TABLE`,
+    '',
+    ''
+  );
+
+  if(!G.foulCount) G.foulCount=[0,0];
+
+  G.foulCount[fouler]++;
+
+  if(!G.maxFoulPenalty) G.maxFoulPenalty=[0,0];
+
+  if(penalty > G.maxFoulPenalty[fouler]){
+    G.maxFoulPenalty[fouler] = penalty;
+  }
+
+  switchTurn();
+
+  updateBalls();
+  animateScore(opp);
+  flashScoreboard();
+
+  // 🔥 RED FOUL FUNNY COMMENTARY
+  const isUdom =
+    foulerName.toUpperCase().includes('UDOM');
+
+  if(!isUdom){
+
+    const redFoulLines = [
+
+      `${foulerName} fouled AND deleted ${n} red balls 💀`,
+
+      `NAHHHH ${foulerName} just speedran the reds accidentally`,
+
+      `${foulerName} removed ${n} red balls like a table cleanup service`,
+
+      `That was NOT the combo we were expecting 😭`,
+
+      `${foulerName} really said if I foul, the reds are coming with me`,
+
+      `${oppName} receives 4 free points sponsored by chaos`,
+
+      `${foulerName} just committed mass red ball destruction`,
+
+      `The reds have officially filed a restraining order against ${foulerName}`,
+
+      `${foulerName} with the tactical red ball sacrifice play`,
+
+      `Bro fouled and still managed to clear inventory`,
+
+      `${n} red balls vanished instantly. Absolute cinema`,
+
+      `${foulerName} pressed random buttons and hoped for the best`,
+
+      `That shot had strong uninstall energy`,
+
+      `${foulerName} just activated vacuum cleaner mode on the reds`,
+
+      `The table physics engine has stopped responding`,
+
+      `${foulerName} turned the frame into a survival horror game`,
+
+      `That was somehow impressive and terrible at the same time`,
+
+      `${foulerName} just donated points while cleaning the table`,
+
+      `Bro really fouled with extra steps`,
+
+      `Cue ball behavior today is deeply concerning`
+
+    ];
+
+    const randomLine =
+      redFoulLines[
+        Math.floor(Math.random() * redFoulLines.length)
+      ];
+
+    speakScore(
+      randomLine,
+      0.92,
+      1.2,
+      1,
+      () => {
+        speakScore();
+      }
+    );
+
+  } else {
+
+    // Respect Mister Oudom 😭
+    speakScore();
+
+  }
+
+  persist();
+  render();
+  publishAll();
 }
 function foulCustom(){ const v=parseInt(document.getElementById('customFoulPts').value); if(isNaN(v)||v<4||v>99){ flashInput('customFoulPts'); return; } foul(v); }
 function flashInput(id){ const el=document.getElementById(id); el.style.borderColor='#e74c3c'; setTimeout(()=>el.style.borderColor='',600); }
