@@ -726,9 +726,9 @@ function selectSubStarter(teamIndex,subIndex){
 
 /* ── NAME PRONUNCIATION ── */
 function pronounce(s){
-  return (s||'').replace(/(OUDOM|DOM)/gi,'Odom').replace(/VITOU/gi,'Vih tu').replace(/PHEARA/gi,'Pheara').replace(/DEEPAK/gi,'Di Pak').replace(/KARUNA|KAKRUNA/gi,'Kakruna').replace(/KOSAL/gi,'Kosol').replace(/HENG/gi,'Hang').replace(/\//g,' and ');
+  return (s||'').replace(/(OUDOM|DOM)/gi,'លោក Odom').replace(/VITOU/gi,'Vih tu').replace(/PHEARA/gi,'Pheara').replace(/DEEPAK/gi,'Di Pak').replace(/KARUNA|KAKRUNA/gi,'Kakruna').replace(/KOSAL/gi,'Kosol').replace(/HENG/gi,'Hang').replace(/\//g,' and ');
 }
-function speakScore(input, rate = 0.4, pitch = 1.4, volume = 1,onEnd = null){
+function speakScore(input, rate = .92, pitch = 1.2, volume = 1,onEnd = null){
   if(!window.speechSynthesis||isMuted) return;
   const p0=pronounce(G.players&&G.players[0]);
   const p1=pronounce(G.players&&G.players[1]);
@@ -1096,8 +1096,8 @@ const funnyLines = [
 
     speakScore(
       randomLine,
-      1,
-      0.9,
+      .92,
+      1.2,
       1,
       onEnd = () => {
         speakScore();
