@@ -1351,7 +1351,7 @@ function applyRedFoul(){
   render();
   publishAll();
 }
-function foulCustom(){ const v=parseInt(document.getElementById('customFoulPts').value); if(isNaN(v)||v<4||v>99){ flashInput('customFoulPts'); return; } foul(v); }
+function foulCustom(){ const v=parseInt(document.getElementById('customFoulPts').value); if(isNaN(v)||v>99){ flashInput('customFoulPts'); return; } foul(v); }
 function flashInput(id){ const el=document.getElementById(id); el.style.borderColor='#e74c3c'; setTimeout(()=>el.style.borderColor='',600); }
 
 /* ── TURN SWITCH ── */
@@ -1541,9 +1541,9 @@ if(mw >= 0){
 
 speakScore(
   winSpeech,
-  .8,
-  .4,
-  2,
+    0.92,
+    1.2,
+    1,
   null
 );
     const gifWrap=document.getElementById('winnerGifWrap'), gifImg=document.getElementById('winnerGifImg');
