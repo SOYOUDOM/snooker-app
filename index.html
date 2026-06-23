@@ -919,8 +919,10 @@ function speak(text){ speakScore(text); }
 function speakPlayer(ti){
   if(S.isMuted) return; const G=S.G; const name=getActiveName(G,ti).trim();
   if(isKm()){
-    const km=[name+' ដល់វេនអ្នកហើយ យេយេយេយេ អេអាយ',name+' អញ្ជើញមកបុក','ទូរទស្សន៏ជាទីមេត្រី ដល់ពេលប្រូ '+name+' បុកហើយ',' លោក '+name+' បង្ហាញសមត្ថភាពមើល៎',name+' ដល់ម៉ោងលេងហើយ ហើយចង់ប្រាប់ថាក្រៅពីប្រូឧត្តម គ្មានណាខ្លាំងមូយទេ ហាហាហា អេអាយ'];
-    speakScore(pick(km)); return;
+    const isOudom=name.toUpperCase().includes('UDOM')||name.toUpperCase().includes('ODOM')||name.includes('ឧត្តម');
+    const kmNotOudom=[name+' ដល់វេនអ្នកហើយ យេយេយេយេ អេអាយ',name+' អញ្ជើញមកបុក','ទូរទស្សន៏ជាទីមេត្រី ដល់ពេលប្រូ '+name+' បុកហើយ',' លោក '+name+' បង្ហាញសមត្ថភាពហើយ',name+' ដល់ម៉ោងBrotherលេងហើយ', 'សូមយកទៀនធុរ មកសែនផង ព្រោះពេលនេះ លោក '+name+' ចេញមកហើយ', 'ប្រូ '+name+' បុកចូលខ្មោចឱ្យសុទ្ធ', 'ដល់វេនលោក '+name+' ហើយ ទោះគ្មានសមត្ថភាព ក៏មានខ្មោចដែរ ហាហាហាហា អេអាយ', 'សូមលោក '+ name+'មកបុក'];
+    const km=['លោក លោកស្រី អ្នកនាងកញ្ញា សូមធ្វើការស្វាគមន៏ទៅដល់កំពូលអ្នកលេងSnookerប្រចាំពិភពគុណ លោក '+name+'wow wow wow woh អេអាយ','លោក '+name+' អញ្ជើញមកបុកហើយត្រៀមចាញ់ឱ្យហើយទៅ','សូមយកក្រដាសជូតទឹកភ្នែកឱ្យហើយទៅ ពេលនេះលោក '+name+' ព្រលះលោកអ្នកហើយ ហាហាហា អេអាយ',' ប្រុសស្អាត់ប្រចាំដេប៉ាតឺម៉ង់អាយធី លោក '+name+' បង្ហាញសមត្ថភាពហើយ',name+' ដល់ម៉ោងលេងហើយ ហើយចង់ប្រាប់ថាក្រៅពីប្រូឧត្តម គ្មានណាខ្លាំងមូយទេ ហាហាហា អេអាយ'];
+    speakScore(pick(isOudom ? km : kmNotOudom)); return;
   }
   const normal=[name+', your turn at the table',name+', show us what you got',name+', the table is yours','Your shot, '+name,name+', lock in',name+", let's see some magic",name+', time for the comeback',name+', cue in hand, aura activated'];
   const udom=['Ladies and Gentlemen, Mister Odom has entered the arena','Please remain calm, Mister Odom approaches the table','The crowd goes silent as Mister Odom locks in','Ayo everybody wake up, Mister Odom is cooking again','Breaking news, Mister Odom is about to farm another frame','The final boss, Mister Odom, steps up to the table','The aura in the room just increased dramatically, Mister Odom turn','Somebody start recording, Mister Odom is at the table'];
@@ -930,8 +932,10 @@ function speakPot(name,colour){
   if(S.isMuted) return;
   if(isKm()){
     const c=kmColour(colour);
-    const km=[name+' ស៊ីកូន '+c+' បានល្អណាស់','wow ខ្មោចឱ្យទេប្រូ '+name,name+' លេងពូកែមែន កូន '+c+' ចូលហើយ ឡូយមែនទែនតាម៉ងហ្អា','កូន '+c+' បាត់ស្រមោលឱ្យឈឹង ពេលប្រូ'+name+' បុក',name+' បុកកូន '+c+' បានយ៉ាងស្អាត'];
-    speakScore(pick(km),.96,1,1,()=>speakScore()); return;
+    const isOudom=name.toUpperCase().includes('UDOM')||name.toUpperCase().includes('ODOM')||name.includes('ឧត្តម');
+    const kmNotOudom=[name+' ស៊ីកូន '+c+' បានល្អណាស់','wow ខ្មោចឱ្យទេប្រូ '+name,name+' លេងពូកែមែន កូន '+c+' ចូលហើយ ឡូយមែនទែនតាម៉ង','កូន '+c+' បាត់ស្រមោលឱ្យឈឹង ពេលប្រូ'+name+' បុក',name+' បុកកូន '+c+' បានយ៉ាងស្អាត', name+' ស៊ីកូន '+c+' បានយ៉ាងស្រស់ប្រិមប្រិយ', name+' ញុាំអីបានបុកសាហាវម្លឹងម្លឹង', 'អ្នកណាហ៊ានលេងទៀតបើស៊ីកូន '+c+' គ្មានបន្សល់តម្រុយដូចនេះ', 'តើនេះជាអ្វីទៅប្រូ '+name+' ចូរបកស្រាយឱ្យបានក្បោះក្បាយ តាមបែបប្រលោមលោក', 'ហេតុបានស៊ីកូន '+c+' មានដឹងទេថា មានអ្នកខ្លះកំពុងឈរមើលទាំងស្រក់ទឹកភ្នែក', 'លោក '+ name + 'ចង់យាយថា សូមនិយាយថាទេ ចំពោះគ្រឿងញៀន អាភៀន កញ្ឆា យ៉ាម៉ាទឹកកក ហាហាហា​ អេអាយ'];
+    const km=['wow អធិរាជ '+name+' ពិសារកូន '+c+' ស្អាតដូចមុខអូនអញ្ចឹង','wow គ្មានពាក្យថាខ្មោចឱ្យទេប្រូ ចំពោះលោក '+name+' សមត្ថភាពសុទ្ធសាធ','លោក '+name+' សូមមេត្តាទំលាក់ទឹកដៃបន្តិចផង កុំឱ្យតែបុកដឹងតែស៊ីបែបនេះអី','កូន '+c+' បានទៅសម្រាកក្នុងឡូ បាត់ទៅហើយ','លើកក្រោយសូមមេត្តាលោក '+name+' បិទភ្នែកបុកតែម្តងទោ អាណិតអ្នកលេងផ្សេងផង ', 'ខ្ញុំនិយាយថាទេ តែអធិរាជ '+name+' លឺថាខំខំ ស៊ីកូន '+c+' គ្មានប្រណី', 'តើគួប្រាប់ថាមិចទៀត បើលោក '+name+' ស៊ីកូន'+c+' សាហាវម្លឹងម្លឹង', 'លោក '+name+' ចង់ប្រាប់ថា យកក្រដាស ឬកន្សែងជូតទឹកភ្នែកផង','អនិច្ចាដល់គេផង លោក'+name];
+    speakScore(pick(isOudom ? km : kmNotOudom),.96,1,1,()=>speakScore()); return;
   }
   const f=['Wow, Mister '+name+' casually deletes the '+colour+' ball from existence','Ladies and gentlemen, Mister '+name+' pots the '+colour+' like a true champion','Somebody stop Mister '+name+', another beautiful '+colour+' pot','The crowd goes wild as Mister '+name+' sinks the '+colour,'Clean, elegant, dangerous, Mister '+name+' pots the '+colour,'That '+colour+' ball never stood a chance against Mister '+name,name+" with the confidence of prime Ronnie O'Sullivan",'Mister '+name+' sends the '+colour+' ball straight to the shadow realm','Absolutely filthy pot from Mister '+name+' on the '+colour,'The table is terrified of Mister '+name+' right now','Mister '+name+' pots the '+colour+' with zero respect for physics','Mister '+name+' out here farming snooker points again','That '+colour+' ball got unfollowed from reality instantly','Mister '+name+' said skill issue and deleted the '+colour,'This man is not playing snooker, he is producing cinema','The '+colour+' ball just experienced generational trauma','That shot was cleaner than my search history','Nah the '+colour+' ball got sent to the backrooms',name+' out here playing 8K ultra HD snooker','That '+colour+' pot was absolutely disrespectful','The '+colour+' ball just got evicted by Mister '+name,'Mister '+name+' is lowkey cooking too hard right now','The table is filing a restraining order against '+name,'Mister '+name+' really woke up and chose violence today','This brother is absolutely locked in','Mister '+name+' with that certified main character energy','The '+colour+' ball is requesting a refund','That pot was sponsored by pure aura','This table belongs to '+name+' now, legally speaking','That shot deserves its own Netflix documentary'];
   speakScore(pick(f),.92,1.2,1,()=>speakScore());
@@ -939,7 +943,7 @@ function speakPot(name,colour){
 function speakFoul(foulerName,oppName,penalty){
   if(S.isMuted) return;
   if(isKm()){
-    const km=['ហាហាហា អេអាយ លោក'+foulerName+' បរិច្ចាគ '+penalty+' ពិន្ទុ ទៅកាន់លោក '+oppName+' ហាហាហា អេអាយ',foulerName+' ឲ្យពិន្ទុឥតគិតថ្លៃ ទៅ '+oppName+ ' ចង់ប្រាប់ប្រូថាឈប់ជក់ទៅ ទើបលេងឈ្នះគេ',foulerName+' បុកខុសហើយ '+oppName+' ទទួលបាន '+penalty+' ពិន្ទុ','អនិច្ចា '+foulerName+' ខុសច្បាប់ទៀតហើយ'];
+    const km=['ហាហាហា អេអាយ លោក'+foulerName+' បរិច្ចាគ '+penalty+' ពិន្ទុ ទៅកាន់លោក '+oppName+' ហាហាហា អេអាយ',foulerName+' ឲ្យពិន្ទុឥតគិតថ្លៃ ទៅ '+oppName+ ' ចង់ប្រាប់ប្រូថាខំតិចទៀត ទើបលេងឈ្នះគេ',foulerName+' បុកខុសហើយ '+oppName+' ទទួលបាន '+penalty+' ពិន្ទុ','អនិច្ចា '+foulerName+' ខុសច្បាប់ទៀតហើយ'];
     speakScore(pick(km),.96,1,1,()=>speakScore()); return;
   }
   if(/UDOM|ODOM/i.test(foulerName)){ speakScore(); return; }
