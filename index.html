@@ -861,7 +861,7 @@ function showWinnerModal(fw,matchOver){
     win.label='// FRAME '+(G.currentFrameNum||1)+' LEVEL //';
     win.draw=true; win.name='SCORES LEVEL'; win.score=G.scores[0]+'  —  '+G.scores[1];
     win.showRespot=true; win.showDraw=true; win.showNext=false; win.showDismiss=false; win.showGif=false;
-    speak(isKm()?'ពិន្ទុស្មើគ្នា សូមដាក់បាល់ខ្មៅឡើងវិញ ឬព្រមជាស្មើ':'The frame is level. Re-spot the black for sudden death, or call it a draw');
+    speak(isKm()?'ពិន្ទុស្មើគ្នា សូមដាក់កូនខ្មៅឡើងវិញ ឬព្រមជាស្មើ':'The frame is level. Re-spot the black for sudden death, or call it a draw');
     S.win=win; S.overlay='winner'; render(); return;
   }
   if(matchOver){
