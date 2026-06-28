@@ -2466,13 +2466,11 @@
       }
     }
 
-    /* ===== LANDSCAPE = two columns (balls left, log right) like the desktop view =====
-   Triggers on ANY landscape ≥680px wide — including a phone on its side. The left
-   column flexes so balls + actions stay fully visible; the log scrolls on the right. */
-    @media (orientation:landscape) and (min-width:680px) {
+    /* landscape / tablet — two-column only when the screen is also TALL enough (real tablets, not a phone on its side) */
+    @media (orientation:landscape) and (min-width:680px) and (min-height:520px) {
       .gbody.land {
         display: grid;
-        grid-template-columns: 1.12fr .88fr;
+        grid-template-columns: 1.05fr .95fr;
         grid-template-rows: auto 1fr;
         gap: 0;
         overflow: hidden;
@@ -2507,198 +2505,64 @@
       }
     }
 
-    /* TALL landscape (tablet / desktop) — let the scores breathe */
-    @media (orientation:landscape) and (min-width:680px) and (min-height:640px) {
-      .gbody.land .psc {
-        font-size: 60px;
-      }
-    }
-
-    /* SHORT landscape (phone on its side, ~360–540px tall) — compact every block so the
-   balls and action buttons are fully visible with no scrolling. */
-    @media (orientation:landscape) and (min-width:680px) and (max-height:540px) {
-      .hdr {
-        padding: 5px 12px;
+    /* short viewport (phone in landscape) — compact everything so it fits, the rest scrolls */
+    @media (max-height:560px) {
+      .sync {
+        padding: 3px 12px;
       }
 
-      .hdr-logo {
-        width: 21px;
-        height: 21px;
+      .turnbar {
+        padding: 4px 14px;
       }
 
-      .hdr-name {
-        font-size: 11px;
-        letter-spacing: 3px;
-      }
-
-      .hdr .ic {
-        width: 31px;
-        height: 31px;
-        font-size: 13px;
-      }
-
-      .hdr .ic.lang {
-        font-size: 10px;
-      }
-
-      .game>.sync {
-        padding: 2px 12px;
-        font-size: 9px;
-      }
-
-      .game>.fbanner {
-        padding: 3px 14px;
-      }
-
-      .gbody.land .turnbar {
-        padding: 3px 14px;
-      }
-
-      .gbody.land .turnbar .tn {
-        font-size: 13px;
-      }
-
-      .gbody.land .turnbar .ta {
+      .turnbar .tn {
         font-size: 14px;
       }
 
-      .gbody.land .turnbar .tnext {
-        font-size: 8px;
+      .pside {
+        padding: 6px 12px;
       }
 
-      .gbody.land .pside {
-        padding: 4px 12px;
-      }
-
-      .gbody.land .ptag {
-        margin-bottom: 0;
-        font-size: 8px;
-      }
-
-      .gbody.land .pnm {
+      .pnm {
         font-size: 11px;
-        margin-bottom: 1px;
+        margin-bottom: 3px;
         min-height: 0;
       }
 
-      .gbody.land .psc {
-        font-size: 30px;
-        letter-spacing: -1px;
+      .psc {
+        font-size: 34px;
       }
 
-      .gbody.land .pbrk {
-        margin-top: 0;
-        font-size: 9px;
+      .pbrk {
+        margin-top: 2px;
       }
 
-      .gbody.land .score-mid {
-        padding: 0 9px;
-        gap: 3px;
-      }
-
-      .gbody.land .vs {
-        font-size: 10px;
-      }
-
-      .gbody.land .score-edit {
-        padding: 2px 6px;
-        font-size: 10px;
-      }
-
-      .gbody.land .strip .cell {
-        padding: 3px 4px;
-      }
-
-      .gbody.land .strip .cell-l {
-        margin-bottom: 1px;
-        font-size: 8px;
-      }
-
-      .gbody.land .strip .cell-v {
-        font-size: 12px;
-      }
-
-      .gbody.land .snk-st {
-        padding: 3px 12px;
-        font-size: 9px;
-      }
-
-      .gbody.land .ball-sec {
-        padding: 4px 10px;
-      }
-
-      .gbody.land .ball-sec .minilbl {
-        margin-bottom: 4px;
-      }
-
-      .gbody.land .ball-grid {
-        gap: 6px;
-      }
-
-      .gbody.land .ball {
-        border-width: 1.5px;
-      }
-
-      .gbody.land .ball .bp {
-        font-size: 13px;
-      }
-
-      .gbody.land .ball .bn {
-        font-size: 5px;
-        margin-top: 0;
-      }
-
-      .gbody.land .act-sec {
-        padding: 3px 10px 6px;
-      }
-
-      .gbody.land .act {
-        padding: 6px 4px;
-        font-size: 8px;
-        gap: 3px;
-      }
-
-      .gbody.land .act i {
-        font-size: 14px;
-      }
-
-      .gbody.land .land-right .minilbl {
-        margin: 5px 0;
-      }
-
-      .gbody.land .le {
-        padding: 5px 9px;
-      }
-    }
-
-    /* VERY short (small phones on their side, <400px tall) — squeeze a little more */
-    @media (orientation:landscape) and (min-width:680px) and (max-height:400px) {
-      .hdr {
-        padding: 4px 11px;
-      }
-
-      .gbody.land .pnm {
-        font-size: 10px;
-      }
-
-      .gbody.land .psc {
-        font-size: 26px;
-      }
-
-      .gbody.land .ball .bp {
-        font-size: 12px;
-      }
-
-      .gbody.land .strip .cell-v {
-        font-size: 11px;
-      }
-
-      .gbody.land .act {
+      .strip .cell {
         padding: 5px 4px;
       }
 
-      .gbody.land .act i {
-        font-size: 13px;
+      .ball-sec {
+        padding: 6px 12px 5px;
+      }
+
+      .minilbl {
+        margin-bottom: 6px;
+      }
+
+      .ball-grid {
+        gap: 6px;
+      }
+
+      .act-sec {
+        padding: 3px 12px 7px;
+      }
+
+      .act {
+        padding: 8px 4px;
+      }
+
+      .act i {
+        font-size: 15px;
       }
     }
 
@@ -2792,7 +2656,7 @@
       win: null, conclusionFrame: 0, deleteCode: null, endMatchPick: 0,
       isMuted: !CONFIG.voiceOnByDefault, lang: 'en', sync: { online: false, label: 'CONNECTING…' },
       toast: null, bump: [false, false], flash: false, lastNameField: 'p1',
-      viewport: { landscape: window.innerWidth > window.innerHeight && window.innerWidth >= 680 }
+      viewport: { landscape: window.innerWidth > window.innerHeight && window.innerWidth >= 680 && window.innerHeight >= 520 }
     };
 
     /* engine-runtime vars (not part of render state) */
@@ -3199,7 +3063,7 @@
         win.label = '// FRAME ' + (G.currentFrameNum || 1) + ' LEVEL //';
         win.draw = true; win.name = 'SCORES LEVEL'; win.score = G.scores[0] + '  —  ' + G.scores[1];
         win.showRespot = true; win.showDraw = true; win.showNext = false; win.showDismiss = false; win.showGif = false;
-        speak(isKm() ? 'ពិន្ទុស្មើគ្នា សូមដាក់បាល់ខ្មៅឡើងវិញ ឬព្រមជាស្មើ' : 'The frame is level. Re-spot the black for sudden death, or call it a draw');
+        speak(isKm() ? 'ពិន្ទុស្មើគ្នា សូមដាក់កូនខ្មៅឡើងវិញ ឬព្រមជាស្មើ' : 'The frame is level. Re-spot the black for sudden death, or call it a draw');
         S.win = win; S.overlay = 'winner'; render(); return;
       }
       if (matchOver) {
@@ -3387,17 +3251,17 @@
       if (isKm()) {
         if (mw < 0) { speakScore('ការប្រកួតស្មើគ្នា'); return; }
         const n = G.players[mw], diff = Math.abs((G.scores[0] || 0) - (G.scores[1] || 0));
-        const km = [n + ' ឈ្នះការប្រកួត', n + ' ឈ្នះដោយ ' + diff + ' ពិន្ទុ', n + ' ពូកែមែន ឈ្នះការប្រកួតនេះ', 'អបអរសាទរ ' + n + ' ឈ្នះហើយ', n + ' លេងបានល្អឥតខ្ចោះ ឈ្នះដោយ ' + diff + ' ពិន្ទុ', n + ' ឈ្នះហើយ! តែមើលទៅដោយសារគូប្រកួតវាយឲ្យឈ្នះទេ មិនមែនពូកែអីណាស់ណាទេ កុំសូវអួតពេក អេអាយ!',
-        'អបអរសាទរលោក ' + n + ' ដែលបានឈ្នះផ្តាច់ ' + diff + ' ពិន្ទុ! សូមអ្នកចាញ់រៀបចំលុយបង់ថ្លៃតុកឲ្យហើយទៅ!',
-        'លោក ' + n + ' ឈ្នះហើយ! តែប្រហែលជាប្រើសំណាងអស់មួយជីវិតហើយសម្រាប់ថ្ងៃនេះ!',
-        'សុំកន្សែងមួយមក! អ្នកចាញ់យំហើយ ឯលោក ' + n + ' ឈ្នះដាច់ ' + diff + ' ពិន្ទុ ដើរអួតពេញហាងតែម្តង!',
-        'លោក ' + n + ' ឈ្នះការប្រកួត! តើអ្នកចាញ់មានអារម្មណ៍យ៉ាងណាដែរ ពេលត្រូវគេស៊ីដាច់ ' + diff + ' ពិន្ទុបែបនេះ? ចង់លោតទឹកមែន?',
-        'ពិតជាសាហាវមែនលោក ' + n + ' ឈ្នះគេដោយគ្មានក្តីមេត្តា! អ្នកចាញ់សូមឆាប់ទៅរៀនវាយប៊ូលឡើងវិញទៅណា៎!',
-        'លោក ' + n + ' ឈ្នះដាច់ ' + diff + ' ពិន្ទុ! មើលទៅប្រហែលជាពឹងលើសំពះគ្រូជួយ ទើបបានឈ្នះនេះ!',
-        'ហាហាហា! ការប្រកួតបានបញ្ចប់ លោក ' + n + ' ជាអ្នកឈ្នះ! ចំណែកអ្នកចាញ់ សូមទៅអង្គុយយំនៅគែមតុកចុះ!',
-        'មិននឹកស្មានថាលោក ' + n + ' អាចឈ្នះសោះ! នេះប្រាកដជាអព្ភូតហេតុទី៨ លើពិភពលោកហើយ!',
-        'លោក ' + n + ' ឈ្នះដោយ ' + diff + ' ពិន្ទុ! សូមទះដៃឲ្យអ្នកចាញ់ដែលខំប្រឹងរហូតដល់វិនាទីចុងក្រោយ ទោះបីដឹងថាខ្លួនឯងលេងអន់ក៏ដោយ!'
-        ];
+        const km = [n + ' ឈ្នះការប្រកួត', n + ' ឈ្នះដោយ ' + diff + ' ពិន្ទុ', n + ' ពូកែមែន ឈ្នះការប្រកួតនេះ', 'អបអរសាទរ ' + n + ' ឈ្នះហើយ', n + ' លេងបានល្អឥតខ្ចោះ ឈ្នះដោយ ' + diff + ' ពិន្ទុ',    n + ' ឈ្នះហើយ! តែមើលទៅដោយសារគូប្រកួតវាយឲ្យឈ្នះទេ មិនមែនពូកែអីណាស់ណាទេ កុំសូវអួតពេក អេអាយ!',
+    'អបអរសាទរលោក ' + n + ' ដែលបានឈ្នះផ្តាច់ ' + diff + ' ពិន្ទុ! សូមអ្នកចាញ់រៀបចំលុយបង់ថ្លៃតុកឲ្យហើយទៅ!',
+    'លោក ' + n + ' ឈ្នះហើយ! តែប្រហែលជាប្រើសំណាងអស់មួយជីវិតហើយសម្រាប់ថ្ងៃនេះ!',
+    'សុំកន្សែងមួយមក! អ្នកចាញ់យំហើយ ឯលោក ' + n + ' ឈ្នះដាច់ ' + diff + ' ពិន្ទុ ដើរអួតពេញហាងតែម្តង!',
+    'លោក ' + n + ' ឈ្នះការប្រកួត! តើអ្នកចាញ់មានអារម្មណ៍យ៉ាងណាដែរ ពេលត្រូវគេស៊ីដាច់ ' + diff + ' ពិន្ទុបែបនេះ? ចង់លោតទឹកមែន?',
+    'ពិតជាសាហាវមែនលោក ' + n + ' ឈ្នះគេដោយគ្មានក្តីមេត្តា! អ្នកចាញ់សូមឆាប់ទៅរៀនវាយប៊ូលឡើងវិញទៅណា៎!',
+    'លោក ' + n + ' ឈ្នះដាច់ ' + diff + ' ពិន្ទុ! មើលទៅប្រហែលជាពឹងលើសំពះគ្រូជួយ ទើបបានឈ្នះនេះ!',
+    'ហាហាហា! ការប្រកួតបានបញ្ចប់ លោក ' + n + ' ជាអ្នកឈ្នះ! ចំណែកអ្នកចាញ់ សូមទៅអង្គុយយំនៅគែមតុកចុះ!',
+    'មិននឹកស្មានថាលោក ' + n + ' អាចឈ្នះសោះ! នេះប្រាកដជាអព្ភូតហេតុទី៨ លើពិភពលោកហើយ!',
+    'លោក ' + n + ' ឈ្នះដោយ ' + diff + ' ពិន្ទុ! សូមទះដៃឲ្យអ្នកចាញ់ដែលខំប្រឹងរហូតដល់វិនាទីចុងក្រោយ ទោះបីដឹងថាខ្លួនឯងលេងអន់ក៏ដោយ!'
+];
         speakScore(pick(km), .96, 1, 1, null); return;
       }
       if (mw < 0) { speakScore('The match ends in a draw'); return; }
@@ -3405,6 +3269,8 @@
       const w = ['Ladies and gentlemen, ' + n + ' just committed snooker terrorism', 'Nah, ' + n + ' really turned the table into a content farm', n + ' just hit a generational clip and nobody can stop replaying it', n + ' wins by ' + diff + ' points, this is not a match, this is cyberbullying', 'They need to investigate ' + n + ' for aimbot immediately', n + ' just packed the opponent into a highlight compilation', 'Somebody unplug ' + n + ', bro is playing on creative mode', 'This was not a snooker match, this was a villain origin story', n + ' got more aura than the entire tournament combined', n + ' just converted skill into emotional damage', 'This table officially belongs to ' + n + ' now, legally speaking', n + ' wins by ' + diff + ', humanity was not prepared for this performance', n + ' just made snooker look pay to win', n + ' really spawned in with maxed out stats', n + ' wins by ' + diff + ', certified main character behavior', n + ' just speedran the opponent confidence', n + ' cooked so hard Gordon Ramsay started taking notes', n + ' just activated beast mode without warning', 'Somebody nerf ' + n + ' in the next patch notes', 'This scoreline belongs in a museum honestly'];
       speakScore(pick(w), .92, 1.2, 1, null);
     }
+
+
     /* ---------- confetti ---------- */
     function launchConfetti() {
       if (!CONFIG.confettiOn) return;
@@ -3908,7 +3774,7 @@
 
     /* viewport (landscape/tablet) */
     function onResize() {
-      const ls = window.innerWidth > window.innerHeight && window.innerWidth >= 680;
+      const ls = window.innerWidth > window.innerHeight && window.innerWidth >= 680 && window.innerHeight >= 520;
       if (ls !== S.viewport.landscape) { S.viewport.landscape = ls; render(); }
     }
     window.addEventListener('resize', onResize);
