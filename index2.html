@@ -449,7 +449,6 @@ const PHASE = { REDS:'REDS', COLORS:'COLOURS', ENDED:'ENDED' };
 const COLOR_ORDER = ['yellow','green','brown','blue','pink','black'];
 const LS = 'snk_matches_v4';
 const LS_NAMES = 'snk_player_names_v1';
-const LS_RECENT = 'snk_recent_matches_v1';
 const OUDOM_GIFS = ['https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif','https://media.giphy.com/media/l0HlBO7eyXzSZkJri/giphy.gif'];
 const DEFAULT_GIFS = ['https://media.giphy.com/media/26tOZ42Mg6pbTUPHW/giphy.gif','https://media.giphy.com/media/3oz8xAFtqoOUUrsh7W/giphy.gif'];
 const BALL_PTS = { red:1, yellow:2, green:3, brown:4, blue:5, pink:6, black:7 };
@@ -474,7 +473,7 @@ const S = {
   overlay:null, foul:{ custom:'', redOn:false, redCount:1 }, adjust:{ team:0, delta:0 },
   win:null, conclusionFrame:0, deleteCode:null, endMatchPick:0,
   isMuted:!CONFIG.voiceOnByDefault, lang:'en', sync:{ online:false, label:'CONNECTING…' },
-  toast:null, bump:[false,false], flash:false, lastNameField:'p1',
+  toast:null, bump:[false,false], flash:false, lastNameField:null,
   viewport:{ landscape: window.innerWidth>window.innerHeight && window.innerWidth>=680 && window.innerHeight>=520 }
 };
 
@@ -536,7 +535,6 @@ function saveMatch(code,G){
 function deleteMatch(code){ const all=loadMatches(); delete all[code]; localStorage.setItem(LS,JSON.stringify(all)); }
 /* ---------- remembered player names (autocomplete) ---------- */
 function loadNames(){ try{ return JSON.parse(localStorage.getItem(LS_NAMES)||'[]'); }catch(e){ return []; } }
-function loadRecent(){ try{ return JSON.parse(localStorage.getItem(LS_RECENT)||'[]'); }catch(e){ return []; } }
 function rememberNames(){
   // store each individual player (split doubles on "/"), most-recent first, capped at 24
   let list=loadNames();
@@ -545,16 +543,6 @@ function rememberNames(){
   incoming.forEach(name=>{ list=list.filter(x=>x.toUpperCase()!==name.toUpperCase()); list.unshift(name); });
   list=list.slice(0,24);
   try{ localStorage.setItem(LS_NAMES,JSON.stringify(list)); }catch(e){}
-  // remember the FULL matchup (keeps doubles teams intact) for one-tap “play again”
-  const a=(S.su.p1||'').trim(), b=(S.su.p2||'').trim();
-  if(a&&b){
-    let recent=loadRecent();
-    const ek=a.toUpperCase()+' | '+b.toUpperCase(), rk=b.toUpperCase()+' | '+a.toUpperCase();
-    recent=recent.filter(x=>{ const xk=((x.p1||'').toUpperCase())+' | '+((x.p2||'').toUpperCase()); return xk!==ek && xk!==rk; });
-    recent.unshift({p1:a,p2:b});
-    recent=recent.slice(0,6);
-    try{ localStorage.setItem(LS_RECENT,JSON.stringify(recent)); }catch(e){}
-  }
 }
 function generateCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; return Array.from({length:6},()=>c[Math.floor(Math.random()*c.length)]).join(''); }
 function persist(){ const code=S.currentRoomCode; if(code) saveMatch(code,S.G); }
@@ -667,17 +655,10 @@ function initRoute(){
 /* ---------- setup actions ---------- */
 function pickFrames(n){ S.su.frames=n; render(); }
 function fillName(name){
-  // APPEND to the active team (tap A then B → "A/B"), tap again to remove. Never replaces.
-  const target=(S.lastNameField==='p2')?'p2':'p1';
-  const cur=(S.su[target]||'').trim();
-  const parts=cur?cur.split('/').map(s=>s.trim()).filter(Boolean):[];
-  const idx=parts.findIndex(p=>p.toUpperCase()===name.toUpperCase());
-  if(idx>=0) parts.splice(idx,1); else parts.push(name);
-  S.su[target]=parts.join('/');
-  render();
+  let target=S.lastNameField;
+  if(target!=='p1'&&target!=='p2'){ target=!S.su.p1.trim()?'p1':(!S.su.p2.trim()?'p2':'p1'); }
+  S.su[target]=name; S.lastNameField=target; render();
 }
-function fillMatchup(i){ const m=loadRecent()[i]; if(!m) return; S.su.p1=m.p1; S.su.p2=m.p2; render(); }
-function setTarget(t){ S.lastNameField=(t==='p2')?'p2':'p1'; render(); }
 function pickSub(ti,i){ S.su.subStarters[ti]=i; render(); }
 function hcapAdj(ti,d){ S.su.hcap[ti]=Math.max(0,Math.min(147,S.su.hcap[ti]+d)); render(); }
 function copyPending(){ const code=S.pendingRoomCode; if(code){ try{ navigator.clipboard.writeText(code); toast('COPIED ✓'); }catch(e){} } }
@@ -1011,18 +992,6 @@ function speakPot(name,colour){
   const f=['Wow, Mister '+name+' casually deletes the '+colour+' ball from existence','Ladies and gentlemen, Mister '+name+' pots the '+colour+' like a true champion','Somebody stop Mister '+name+', another beautiful '+colour+' pot','The crowd goes wild as Mister '+name+' sinks the '+colour,'Clean, elegant, dangerous, Mister '+name+' pots the '+colour,'That '+colour+' ball never stood a chance against Mister '+name,name+" with the confidence of prime Ronnie O'Sullivan",'Mister '+name+' sends the '+colour+' ball straight to the shadow realm','Absolutely filthy pot from Mister '+name+' on the '+colour,'The table is terrified of Mister '+name+' right now','Mister '+name+' pots the '+colour+' with zero respect for physics','Mister '+name+' out here farming snooker points again','That '+colour+' ball got unfollowed from reality instantly','Mister '+name+' said skill issue and deleted the '+colour,'This man is not playing snooker, he is producing cinema','The '+colour+' ball just experienced generational trauma','That shot was cleaner than my search history','Nah the '+colour+' ball got sent to the backrooms',name+' out here playing 8K ultra HD snooker','That '+colour+' pot was absolutely disrespectful','The '+colour+' ball just got evicted by Mister '+name,'Mister '+name+' is lowkey cooking too hard right now','The table is filing a restraining order against '+name,'Mister '+name+' really woke up and chose violence today','This brother is absolutely locked in','Mister '+name+' with that certified main character energy','The '+colour+' ball is requesting a refund','That pot was sponsored by pure aura','This table belongs to '+name+' now, legally speaking','That shot deserves its own Netflix documentary'];
   speakScore(pick(f),.92,1.2,1,()=>speakScore());
 }
-function speakPot(name,colour){
-  if(S.isMuted) return;
-  if(isKm()){
-    const c=kmColour(colour);
-    const isOudom=name.toUpperCase().includes('UDOM')||name.toUpperCase().includes('ODOM')||name.includes('ឧត្តម');
-    const kmNotOudom=[name+' ស៊ីកូន '+c+' បានល្អណាស់','wow ខ្មោចឱ្យទេប្រូ '+name,name+' លេងពូកែមែន កូន '+c+' ចូលហើយ ឡូយមែនទែនតាម៉ង','កូន '+c+' បាត់ស្រមោលឱ្យឈឹង ពេលប្រូ'+name+' បុក',name+' បុកកូន '+c+' បានយ៉ាងស្អាត', name+' ស៊ីកូន '+c+' បានយ៉ាងស្រស់ប្រិមប្រិយ', name+' ញុាំអីបានបុកសាហាវម្លឹងម្លឹង', 'អ្នកណាហ៊ានលេងទៀតបើស៊ីកូន '+c+' គ្មានបន្សល់តម្រុយដូចនេះ', 'តើនេះជាអ្វីទៅប្រូ '+name+' ចូរបកស្រាយឱ្យបានក្បោះក្បាយ តាមបែបប្រលោមលោក', 'ហេតុបានស៊ីកូន '+c+' មានដឹងទេថា មានអ្នកខ្លះកំពុងឈរមើលទាំងស្រក់ទឹកភ្នែក', 'លោក '+ name + 'ចង់យាយថា សូមនិយាយថាទេ ចំពោះគ្រឿងញៀន អាភៀន កញ្ឆា យ៉ាម៉ាទឹកកក ហាហាហា​ អេអាយ'];
-    const km=['wow អធិរាជ '+name+' ពិសារកូន '+c+' ស្អាតដូចមុខអូនអញ្ចឹង','wow គ្មានពាក្យថាខ្មោចឱ្យទេប្រូ ចំពោះលោក '+name+' សមត្ថភាពសុទ្ធសាធ','លោក '+name+' សូមមេត្តាទំលាក់ទឹកដៃបន្តិចផង កុំឱ្យតែបុកដឹងតែស៊ីបែបនេះអី','កូន '+c+' បានទៅសម្រាកក្នុងឡូ បាត់ទៅហើយ','លើកក្រោយសូមមេត្តាលោក '+name+' បិទភ្នែកបុកតែម្តងទៅ អាណិតអ្នកលេងផ្សេងផង ', 'ខ្ញុំនិយាយថាទេ តែអធិរាជ '+name+' លឺថាខំខំ ស៊ីកូន '+c+' គ្មានប្រណី', 'តើគួប្រាប់ថាមិចទៀត បើលោក '+name+' ស៊ីកូន'+c+' សាហាវម្លឹងម្លឹង', 'លោក '+name+' ចង់ប្រាប់ថា យកក្រដាស ឬកន្សែងជូតទឹកភ្នែកផង','អនិច្ចាដល់គេផង លោក'+name];
-    speakScore(pick(isOudom ? km : kmNotOudom),.96,1,1,()=>speakScore()); return;
-  }
-  const f=['Wow, Mister '+name+' casually deletes the '+colour+' ball from existence','Ladies and gentlemen, Mister '+name+' pots the '+colour+' like a true champion','Somebody stop Mister '+name+', another beautiful '+colour+' pot','The crowd goes wild as Mister '+name+' sinks the '+colour,'Clean, elegant, dangerous, Mister '+name+' pots the '+colour,'That '+colour+' ball never stood a chance against Mister '+name,name+" with the confidence of prime Ronnie O'Sullivan",'Mister '+name+' sends the '+colour+' ball straight to the shadow realm','Absolutely filthy pot from Mister '+name+' on the '+colour,'The table is terrified of Mister '+name+' right now','Mister '+name+' pots the '+colour+' with zero respect for physics','Mister '+name+' out here farming snooker points again','That '+colour+' ball got unfollowed from reality instantly','Mister '+name+' said skill issue and deleted the '+colour,'This man is not playing snooker, he is producing cinema','The '+colour+' ball just experienced generational trauma','That shot was cleaner than my search history','Nah the '+colour+' ball got sent to the backrooms',name+' out here playing 8K ultra HD snooker','That '+colour+' pot was absolutely disrespectful','The '+colour+' ball just got evicted by Mister '+name,'Mister '+name+' is lowkey cooking too hard right now','The table is filing a restraining order against '+name,'Mister '+name+' really woke up and chose violence today','This brother is absolutely locked in','Mister '+name+' with that certified main character energy','The '+colour+' ball is requesting a refund','That pot was sponsored by pure aura','This table belongs to '+name+' now, legally speaking','That shot deserves its own Netflix documentary'];
-  speakScore(pick(f),.92,1.2,1,()=>speakScore());
-}
 function speakFoul(foulerName,oppName,penalty){
   if(S.isMuted) return;
   if(isKm()){
@@ -1047,7 +1016,6 @@ function speakMatchWin(mw){
   const w=['Ladies and gentlemen, '+n+' just committed snooker terrorism','Nah, '+n+' really turned the table into a content farm',n+' just hit a generational clip and nobody can stop replaying it',n+' wins by '+diff+' points, this is not a match, this is cyberbullying','They need to investigate '+n+' for aimbot immediately',n+' just packed the opponent into a highlight compilation','Somebody unplug '+n+', bro is playing on creative mode','This was not a snooker match, this was a villain origin story',n+' got more aura than the entire tournament combined',n+' just converted skill into emotional damage','This table officially belongs to '+n+' now, legally speaking',n+' wins by '+diff+', humanity was not prepared for this performance',n+' just made snooker look pay to win',n+' really spawned in with maxed out stats',n+' wins by '+diff+', certified main character behavior',n+' just speedran the opponent confidence',n+' cooked so hard Gordon Ramsay started taking notes',n+' just activated beast mode without warning','Somebody nerf '+n+' in the next patch notes','This scoreline belongs in a museum honestly'];
   speakScore(pick(w),.92,1.2,1,null);
 }
-
 
 /* ---------- confetti ---------- */
 function launchConfetti(){
@@ -1197,34 +1165,10 @@ function renderSetup(){
   const redsOpts=[3,6,10,15].map(n=>'<option value="'+n+'" '+(su.reds===n?'selected':'')+'>'+n+' REDS</option>').join('');
   const names=loadNames();
   const nameOpts=names.map(n=>'<option value="'+esc(n)+'"></option>').join('');
-  const recent=loadRecent();
-  const target=(S.lastNameField==='p2')?'p2':'p1';
-  const acc=target==='p2'?'var(--c)':'var(--g)', accDim=target==='p2'?'var(--cdim)':'var(--gdim)', accLine=target==='p2'?'var(--cline)':'var(--gline)';
-  // ONE-TAP PLAY AGAIN — restore a full previous matchup (both players at once)
-  let playAgain='';
-  if(recent.length){
-    const row=recent.slice(0,4).map((m,i)=>'<button data-act="matchchip" data-i="'+i+'" style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:11px;border:1px solid var(--bd2);background:var(--s2);">'+
-      '<span style="font-family:\'Orbitron\',monospace;font-size:11px;font-weight:700;color:var(--g);max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(m.p1)+'</span>'+
-      '<span style="font-family:\'Share Tech Mono\',monospace;font-size:9px;color:var(--low);">VS</span>'+
-      '<span style="font-family:\'Orbitron\',monospace;font-size:11px;font-weight:700;color:var(--c);max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(m.p2)+'</span>'+
-    '</button>').join('');
-    playAgain='<div><div class="fld-lbl" style="margin-top:2px;"><i class="fa-solid fa-rotate-right"></i> PLAY AGAIN — TAP TO LOAD A PAST MATCH</div><div style="display:flex;flex-wrap:wrap;gap:8px;">'+row+'</div></div>';
-  }
-  // TEAM BUILDER — tap names to APPEND to the active player (A then B → A/B)
-  let builder='';
+  let chips='';
   if(names.length){
-    const inTeam=(su[target]||'').split('/').map(s=>s.trim().toUpperCase()).filter(Boolean);
-    const row=names.slice(0,14).map(n=>{
-      const on=inTeam.includes(n.toUpperCase());
-      return '<button data-act="namechip" data-name="'+esc(n)+'" style="padding:8px 13px;border-radius:9px;border:1px solid '+(on?accLine:'var(--bd2)')+';background:'+(on?accDim:'var(--s2)')+';color:'+(on?acc:'var(--mid)')+';font-family:\'Share Tech Mono\',monospace;font-size:11px;letter-spacing:.5px;font-weight:'+(on?'700':'400')+';">'+(on?'✓ ':'')+esc(n)+'</button>';
-    }).join('');
-    const seg='<div style="display:inline-flex;border:1px solid var(--bd2);border-radius:9px;overflow:hidden;flex-shrink:0;">'+
-      '<button data-act="settarget" data-t="p1" style="padding:6px 13px;font-family:\'Share Tech Mono\',monospace;font-size:10px;letter-spacing:1px;background:'+(target==='p1'?'var(--gdim)':'transparent')+';color:'+(target==='p1'?'var(--g)':'var(--low)')+';">P1</button>'+
-      '<button data-act="settarget" data-t="p2" style="padding:6px 13px;font-family:\'Share Tech Mono\',monospace;font-size:10px;letter-spacing:1px;background:'+(target==='p2'?'var(--cdim)':'transparent')+';color:'+(target==='p2'?'var(--c)':'var(--low)')+';">P2</button>'+
-    '</div>';
-    builder='<div class="panel"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:11px;"><div class="panel-ttl" style="margin-bottom:0;">// ADD TO TEAM</div>'+seg+'</div>'+
-      '<div style="display:flex;flex-wrap:wrap;gap:7px;">'+row+'</div>'+
-      '<div class="lobby-sub" style="text-align:left;letter-spacing:.3px;margin-top:10px;line-height:1.5;">Tap a name to add it to the <b style="color:'+acc+'">'+(target==='p2'?'PLAYER 2':'PLAYER 1')+'</b> slot. Tap a second name for doubles (→ <b style="color:'+acc+'">A/B</b>). Tap a ✓ name to remove it.</div></div>';
+    const row=names.slice(0,12).map(n=>'<button data-act="namechip" data-name="'+esc(n)+'" style="padding:7px 13px;border-radius:9px;border:1px solid var(--bd2);background:var(--s2);color:var(--mid);font-family:\'Share Tech Mono\',monospace;font-size:11px;letter-spacing:.5px;">'+esc(n)+'</button>').join('');
+    chips='<div><div class="fld-lbl" style="margin-top:2px;"><i class="fa-solid fa-clock-rotate-left"></i> RECENT PLAYERS — TAP TO FILL</div><div style="display:flex;flex-wrap:wrap;gap:7px;">'+row+'</div></div>';
   }
   const breakOpts='<option value="0" '+(su.breakFirst===0?'selected':'')+'>'+esc(p1lbl)+'</option><option value="1" '+(su.breakFirst===1?'selected':'')+'>'+esc(p2lbl)+'</option>';
   const frameDefs=[{n:1,sub:'FRAME'},{n:3,sub:'2 TO WIN'},{n:5,sub:'3 TO WIN'},{n:7,sub:'4 TO WIN'},{n:9,sub:'5 TO WIN'}];
@@ -1239,7 +1183,7 @@ function renderSetup(){
     '</div>'+
     '<datalist id="snk-names">'+nameOpts+'</datalist>'+
     '<div class="lobby-sub" style="text-align:left;letter-spacing:1px;margin-top:-6px;">Tip: type two names like <b style="color:var(--mid)">ANN/BEN</b> for a doubles team.</div>'+
-    playAgain+builder+
+    chips+
     sub0+sub1+
     '<div class="row2">'+
       '<div><div class="fld-lbl">RED BALLS</div><select class="fin" data-fkey="reds">'+redsOpts+'</select></div>'+
@@ -1493,8 +1437,6 @@ app.addEventListener('click',e=>{
     case 'join': joinByInput(); break;
     case 'copyPending': copyPending(); break;
     case 'namechip': fillName(d.name); break;
-    case 'matchchip': fillMatchup(parseInt(d.i)); break;
-    case 'settarget': setTarget(d.t); break;
     case 'toggleMute': toggleMute(); break;
     case 'toggleLang': toggleLang(); break;
     case 'restart': confirmRestart(); break;
